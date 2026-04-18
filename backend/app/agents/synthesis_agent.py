@@ -53,13 +53,244 @@ def _extract_synthesis_json(llm_result: dict) -> dict | None:
     return None
 
 
-def _normalize_verdict(raw: str) -> str:
-    v = (raw or "").lower().strip()
-    if v in ("fraud", "likely_fraud"):
-        return "fraud"
-    if v in ("legitimate", "likely_legitimate"):
-        return "legitimate"
-    return "suspicious"
+def _profile_known(
+    behavior_result: dict | None,
+) -> tuple[list[str], list[str], int]:
+    if not behavior_result:
+        return [], [], 0
+    profile = behavior_result.get("customer_profile") or {}
+    top = profile.get("top_categories") or []
+    countries = profile.get("countries") or []
+    known_cats: list[str] = []
+    for c in top:
+        if isinstance(c, dict):
+            known_cats.append(str(c.get("category") or ""))
+        else:
+            known_cats.append(str(c))
+    known_cc: list[str] = []
+    for c in countries:
+        if isinstance(c, dict):
+            known_cc.append(str(c.get("country") or ""))
+        else:
+            known_cc.append(str(c))
+    ntx = int(profile.get("total_transactions") or 0)
+    return known_cats, known_cc, ntx
+
+
+def _flags_blob(behavior_result: dict | None) -> str:
+    if not behavior_result:
+        return ""
+    parts = [str(f).lower() for f in (behavior_result.get("behavioral_flags") or [])]
+    return " ".join(parts)
+
+
+def _drain_fraction(txn: dict) -> float:
+    ob = float(txn.get("old_balance_org") or 0)
+    nb = float(txn.get("new_balance_orig") or 0)
+    if ob <= 0:
+        return 0.0
+    return (ob - nb) / ob
+
+
+def _balance_remain_ratio(txn: dict) -> float:
+    """new_balance / old_balance (origin account)."""
+    ob = float(txn.get("old_balance_org") or 0)
+    nb = float(txn.get("new_balance_orig") or 0)
+    if ob <= 0:
+        return 1.0
+    return nb / ob
+
+
+def _any_high_or_critical(rules: list) -> bool:
+    return any(r.get("severity") in ("HIGH", "CRITICAL") for r in rules)
+
+
+def _adversarial_patterns_matched(
+    triage_result: dict,
+    behavior_result: dict | None,
+) -> list[str]:
+    """Return human-readable pattern ids for ADVERSARIAL_OVERRIDE (pre-score)."""
+    txn = triage_result.get("transaction", {}) or {}
+    rules = triage_result.get("rules_fired", [])
+    matched: list[str] = []
+    fb = _flags_blob(behavior_result)
+    known_cats, known_cc, ntx = _profile_known(behavior_result)
+
+    # 1 — Balance drain >80% to new jurisdiction
+    if _drain_fraction(txn) > 0.8:
+        novel = (
+            "new_country" in fb
+            or "category_drift" in fb
+            or (
+                bool(str(txn.get("country_code") or ""))
+                and known_cc
+                and str(txn.get("country_code") or "") not in known_cc
+            )
+            or (
+                bool(txn.get("merchant_category"))
+                and known_cats
+                and str(txn.get("merchant_category") or "") not in known_cats
+            )
+        )
+        if novel:
+            matched.append("BALANCE_DRAIN_TO_NEW_JURISDICTION")
+
+    # 2 — Concentrated history + risky category + 3x average
+    if behavior_result:
+        profile = behavior_result.get("customer_profile") or {}
+        top = profile.get("top_categories") or []
+        if ntx >= 5:
+            counts: list[int] = []
+            for b in top:
+                if isinstance(b, dict):
+                    counts.append(int(b.get("count") or 0))
+                else:
+                    counts.append(0)
+            total_bucket = sum(counts) or ntx
+            top2 = sum(sorted(counts, reverse=True)[:2])
+            concentrated = len(top) <= 2 or (
+                total_bucket > 0 and (top2 / total_bucket) >= 0.70
+            )
+            mcc = (txn.get("merchant_category") or "").lower()
+            risky = any(x in mcc for x in ("crypto", "gambling", "gaming"))
+            avg_amt = float(profile.get("avg_amount") or 0) or 100.0
+            amt = float(txn.get("amount") or 0)
+            if concentrated and risky and amt >= 3 * avg_amt:
+                matched.append("CATEGORY_DRIFT_WITH_AMOUNT_ANOMALY")
+
+    # 3 — Rapid micro burst (rules engine marks single-txn leg of burst)
+    if any(r.get("id") == "rule_rapid_micro" for r in rules):
+        matched.append("RAPID_MICRO_TRANSFER_BURST")
+
+    # 4 — Device + geography + category triple shift
+    fp = str(txn.get("device_fingerprint") or "").lower()
+    new_dev = fp.startswith("new_dev") or "new_device" in fb
+    new_geo = "new_country" in fb or (
+        bool(str(txn.get("country_code") or ""))
+        and known_cc
+        and str(txn.get("country_code") or "") not in known_cc
+    )
+    cat_shift = "category_drift" in fb or (
+        bool(txn.get("merchant_category"))
+        and known_cats
+        and str(txn.get("merchant_category") or "") not in known_cats
+    )
+    if new_dev and new_geo and cat_shift:
+        matched.append("DEVICE_GEO_CATEGORY_TRIPLE_SHIFT")
+
+    # 5 — Drain (balance ratio) with no HIGH/CRITICAL rules
+    if _balance_remain_ratio(txn) < 0.2 and float(txn.get("old_balance_org") or 0) > 0:
+        if not _any_high_or_critical(rules):
+            matched.append("BALANCE_DRAIN_WITH_LOW_RULES_SCORE")
+
+    return list(dict.fromkeys(matched))
+
+
+def _novel_risk_category_bonus(
+    txn: dict,
+    behavior_result: dict | None,
+) -> float:
+    """Step 1: +0.15 for crypto/gambling without prior category, or country not on profile."""
+    if not behavior_result:
+        return 0.0
+    profile = behavior_result.get("customer_profile") or {}
+    top_categories = profile.get("top_categories") or []
+    countries = profile.get("countries") or []
+    if not top_categories and not countries:
+        return 0.0
+
+    known_cats: list[str] = []
+    for c in top_categories:
+        if isinstance(c, dict):
+            known_cats.append(str(c.get("category") or ""))
+        else:
+            known_cats.append(str(c))
+    known_cc: list[str] = []
+    for c in countries:
+        if isinstance(c, dict):
+            known_cc.append(str(c.get("country") or ""))
+        else:
+            known_cc.append(str(c))
+
+    mcc = (txn.get("merchant_category") or "").lower()
+    cat = txn.get("merchant_category") or ""
+    cc = str(txn.get("country_code") or "")
+
+    targets_crypto_gambling = any(x in mcc for x in ("crypto", "gambling", "gaming"))
+    no_prior_cat = bool(cat) and cat not in known_cats
+    unusual_country = bool(cc) and cc not in known_cc
+
+    if targets_crypto_gambling and no_prior_cat:
+        return 0.15
+    if unusual_country:
+        return 0.15
+    return 0.0
+
+
+def _compute_fraud_score(
+    triage_result: dict,
+    behavior_result: dict | None,
+) -> tuple[float, str]:
+    """Step 1: weighted sum; returns (capped total, audited breakdown string)."""
+    rules = triage_result.get("rules_fired", [])
+    txn = triage_result.get("transaction", {}) or {}
+
+    equiv_high = sum(1 for r in rules if r.get("severity") in ("HIGH", "CRITICAL"))
+    high_part = min(0.60, 0.30 * equiv_high)
+    med_n = sum(1 for r in rules if r.get("severity") == "MEDIUM")
+    med_part = min(0.30, 0.15 * med_n)
+
+    anomaly = 0.0
+    n_flags = 0
+    if behavior_result:
+        try:
+            anomaly = float(behavior_result.get("anomaly_score") or 0.0)
+        except (TypeError, ValueError):
+            anomaly = 0.0
+        n_flags = len(behavior_result.get("behavioral_flags") or [])
+    beh_part = anomaly * 0.40
+
+    extra_flags = max(0, n_flags - 1)
+    flag_part = min(0.50, 0.10 * extra_flags)
+
+    sfc = 0
+    if behavior_result:
+        try:
+            sfc = int(behavior_result.get("similar_fraud_count") or 0)
+        except (TypeError, ValueError):
+            sfc = 0
+    if sfc >= 3:
+        sim_part = 0.30
+    elif sfc == 2:
+        sim_part = 0.20
+    elif sfc == 1:
+        sim_part = 0.10
+    else:
+        sim_part = 0.0
+
+    bonus = _novel_risk_category_bonus(txn, behavior_result)
+
+    raw = high_part + med_part + beh_part + flag_part + sim_part + bonus
+    fraud_score = min(1.0, raw)
+
+    audit = (
+        f"fraud_score={fraud_score:.3f} "
+        f"(HIGHequiv×{equiv_high}:+{high_part:.3f}, MED×{med_n}:+{med_part:.3f}, "
+        f"anomaly×0.40:+{beh_part:.3f}, flags_beyond_first:+{flag_part:.3f}, "
+        f"similar_fraud_top10(n={sfc}):+{sim_part:.3f}, novel_risk_bonus:+{bonus:.3f})"
+    )
+    return fraud_score, audit
+
+
+def _verdict_conf_from_fraud_score(fraud_score: float) -> tuple[str, float]:
+    """Step 2: map score to verdict and confidence."""
+    if fraud_score >= 0.65:
+        conf = min(0.95, fraud_score + 0.10)
+        return "fraud", round(min(max(conf, 0.05), 0.99), 2)
+    if fraud_score >= 0.35:
+        return "suspicious", round(min(max(fraud_score, 0.05), 0.99), 2)
+    conf = min(0.90, 1.0 - fraud_score)
+    return "legitimate", round(min(max(conf, 0.05), 0.99), 2)
 
 
 def _normalize_recommendation(
@@ -83,106 +314,57 @@ def _normalize_recommendation(
     return "clear", False
 
 
-def _heuristic_synthesis(
-    triage_result: dict,
-    behavior_result: dict | None,
-) -> tuple[str, str, float, bool, str]:
-    """Middle-ground classifier when LLM output is missing or mock."""
-    rules = triage_result.get("rules_fired", [])
-    triv = triage_result.get("verdict", "suspicious")
-    tri_conf = float(triage_result.get("confidence", 0.55))
-    strong = any(r.get("severity") in ("HIGH", "CRITICAL") for r in rules)
-    crit = any(r.get("severity") == "CRITICAL" for r in rules)
-    anomaly = float((behavior_result or {}).get("anomaly_score") or 0.0)
-    ratio = _fraud_match_ratio(behavior_result)
-    flags = len((behavior_result or {}).get("behavioral_flags") or [])
-    txn = triage_result.get("transaction", {}) or {}
-    mcc = (txn.get("merchant_category") or "").lower()
-    risky_merchant = any(x in mcc for x in ("crypto", "gambling"))
-    ob = float(txn.get("old_balance_org") or 0)
-    nb = float(txn.get("new_balance_orig") or 0)
-    drain = nb == 0 and ob > 800
-    new_dev = str(txn.get("device_fingerprint") or "").startswith("new_dev")
-
-    pts = 0
-    if crit:
-        pts += 3
-    elif strong:
-        pts += 2
-    elif rules:
-        pts += 1
-    if behavior_result:
-        if anomaly >= 0.78:
-            pts += 2
-        elif anomaly >= 0.52:
-            pts += 1
-        if ratio >= 0.58:
-            pts += 2
-        elif ratio >= 0.30:
-            pts += 1
-        if flags >= 4:
-            pts += 2
-        elif flags >= 2:
-            pts += 1
-    if triv in ("likely_fraud",):
-        pts += 1
-    if risky_merchant and drain and (new_dev or flags >= 2):
-        pts += 2
-
-    reasoning = (
-        f"heuristic pts={pts} triage={triv} strong_rules={strong} "
-        f"anomaly={anomaly:.2f} fraud_ratio={ratio:.2f} flags={flags}"
-    )
-
-    if triv == "legitimate" and not rules and pts <= 1:
-        return "legitimate", "clear", max(0.74, tri_conf), False, reasoning
-    if triv in ("likely_legitimate", "legitimate") and not strong and pts <= 2:
-        if pts <= 1:
-            return "legitimate", "clear", max(0.78, tri_conf), False, reasoning
-        return "suspicious", "monitor", min(max(0.58, tri_conf), 0.78), False, reasoning
-
-    if pts >= 5 or (strong and pts >= 3) or crit:
-        conf = min(0.82 + 0.03 * min(pts, 6), 0.95)
-        rec = "freeze" if conf >= 0.9 or crit else "escalate"
-        return "fraud", rec, conf, True, reasoning
-    if pts >= 3:
-        conf = min(0.78 + 0.025 * pts, 0.92)
-        return "fraud", "escalate", conf, True, reasoning
-    if pts >= 1:
-        conf = min(max(0.58, tri_conf, anomaly * 0.85), 0.82)
-        return "suspicious", "monitor", conf, False, reasoning
-    return "legitimate", "clear", max(0.72, tri_conf), False, reasoning
-
-
 def _merge_llm_parsed_and_guardrail(
     parsed: dict | None,
     triage_result: dict,
     behavior_result: dict | None,
     llm_mock: bool,
+    *,
+    precomputed_score: tuple[float, str] | None = None,
+    adversarial_override: str | None = None,
 ) -> tuple[str, str, float, bool, str]:
-    h_v, h_r, h_c, h_req, h_reason = _heuristic_synthesis(
-        triage_result, behavior_result
+    crit = any(
+        r.get("severity") == "CRITICAL" for r in triage_result.get("rules_fired", [])
     )
+
+    if adversarial_override:
+        audit = (
+            f"ADVERSARIAL_OVERRIDE:{adversarial_override} "
+            f"(fraud_score skipped; verdict=fraud confidence=0.75 per policy)"
+        )
+        verdict, conf = "fraud", 0.75
+        s_rec, s_req = _normalize_recommendation(None, verdict, conf)
+        if parsed and not llm_mock:
+            rec, req = _normalize_recommendation(
+                parsed.get("recommendation"), verdict, conf
+            )
+            reasoning = str(parsed.get("reasoning") or "").strip()
+            reasoning = f"{audit} | {reasoning}".strip(" |")
+            return verdict, rec, conf, req, reasoning
+        return verdict, s_rec, conf, s_req, audit
+
+    if precomputed_score is not None:
+        fraud_score, audit = precomputed_score
+    else:
+        fraud_score, audit = _compute_fraud_score(triage_result, behavior_result)
+    sv, sc = _verdict_conf_from_fraud_score(fraud_score)
+    s_rec, s_req = _normalize_recommendation(None, sv, sc)
+    if sv == "fraud" and crit:
+        s_rec, s_req = "freeze", True
+
     if parsed and not llm_mock:
-        verdict = _normalize_verdict(str(parsed.get("verdict", "")))
-        try:
-            conf = float(parsed.get("confidence", 0.7))
-        except (TypeError, ValueError):
-            conf = 0.7
-        conf = min(max(conf, 0.05), 0.99)
+        verdict, conf = sv, sc
         rec, req = _normalize_recommendation(
             parsed.get("recommendation"), verdict, conf
         )
-        reasoning = str(parsed.get("reasoning") or "")
-        if verdict == "legitimate" and h_v == "fraud":
-            verdict, rec, conf, req = h_v, h_r, max(conf, h_c), h_req
-            reasoning = (reasoning + " | guardrail:" + h_reason).strip(" |")
-        elif verdict == "legitimate" and h_v == "suspicious" and h_c >= 0.75:
-            verdict, rec, conf, req = "suspicious", "monitor", max(conf, 0.62), False
-            reasoning = (reasoning + " | guardrail:" + h_reason).strip(" |")
+        if verdict == "fraud" and crit:
+            rec, req = "freeze", True
+        reasoning = str(parsed.get("reasoning") or "").strip()
+        reasoning = f"{audit} | {reasoning}".strip(" |")
+
         return verdict, rec, conf, req, reasoning
 
-    return h_v, h_r, h_c, h_req, h_reason
+    return sv, s_rec, sc, s_req, audit + " | step2_mapping"
 
 
 async def run_synthesis(
@@ -231,13 +413,28 @@ async def run_synthesis(
             f"  {behavior_result.get('reasoning', '')}"
         )
 
+    adv_patterns = _adversarial_patterns_matched(triage_result, behavior_result)
+    adversarial_tag = ", ".join(adv_patterns) if adv_patterns else None
+    if adversarial_tag:
+        fraud_score_value = None
+        step1_audit = (
+            f"ADVERSARIAL_OVERRIDE matched: {adversarial_tag}. "
+            f"Skip fraud_score Steps 1–3; JSON must be verdict=fraud, confidence=0.75, "
+            f"and reasoning must name which pattern(s) matched."
+        )
+    else:
+        fraud_score_value, step1_audit = _compute_fraud_score(
+            triage_result, behavior_result
+        )
     user_msg = (
         f"Final synthesis for investigation {investigation_id}, transaction {transaction_id}.\n\n"
         f"TRIAGE:\n  verdict={triage_verdict}, confidence={triage_confidence:.2f}\n"
         f"  rules_fired ({len(rules_fired)}):\n{rules_text}\n\n"
         f"BEHAVIOR:\n{behavior_text}\n\n"
-        f"Apply the decision framework in your system instructions. "
-        f"End with ONLY the JSON object (verdict, confidence, recommendation, reasoning)."
+        f"Backend directive (repeat key facts in reasoning): {step1_audit}\n\n"
+        f"Follow your system instructions (adversarial override if applicable, else Steps 1–3). "
+        f"End with ONLY the JSON object "
+        f"(verdict, confidence, recommendation, reasoning)."
     )
 
     llm_result = call_llm(
@@ -247,7 +444,16 @@ async def run_synthesis(
 
     verdict, recommendation, confidence, requires_approval, syn_reason = (
         _merge_llm_parsed_and_guardrail(
-            parsed, triage_result, behavior_result, bool(llm_result.get("mock"))
+            parsed,
+            triage_result,
+            behavior_result,
+            bool(llm_result.get("mock")),
+            precomputed_score=(
+                (fraud_score_value, step1_audit)
+                if fraud_score_value is not None
+                else None
+            ),
+            adversarial_override=adversarial_tag,
         )
     )
     confidence = round(float(confidence), 2)
@@ -259,7 +465,7 @@ async def run_synthesis(
 
     summary = (
         f"**Investigation Report: {transaction_id}**\n\n"
-        f"**Verdict: {verdict.upper()}** (Confidence: {confidence*100:.0f}%)\n\n"
+        f"**Verdict: {verdict.upper()}** (Confidence: {confidence * 100:.0f}%)\n\n"
         f"**Transaction Details:**\n"
         f"  Type: {txn.get('type', 'N/A')}, Amount: ${txn.get('amount', 0):,.2f}\n"
         f"  From: {txn.get('name_orig', 'N/A')} → To: {txn.get('name_dest', 'N/A')}\n"
@@ -305,6 +511,10 @@ async def run_synthesis(
         "fraud_match_ratio": (
             _fraud_match_ratio(behavior_result) if behavior_result else None
         ),
+        "fraud_score": (
+            None if fraud_score_value is None else round(float(fraud_score_value), 3)
+        ),
+        "adversarial_override": adversarial_tag,
         "summary": summary,
         "synthesis_reasoning": syn_reason,
     }
