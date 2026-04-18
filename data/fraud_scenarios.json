@@ -1,0 +1,159 @@
+[
+  {"id": "scn_01", "question": "Why was transaction TXN_48213 flagged?", "transaction_id": "TXN_48213", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "balance_drain",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 12000.00, "oldbalanceOrg": 12000.00, "newbalanceOrig": 0.0, "country_code": "RU", "merchant_category": "crypto", "device_fingerprint": "new_dev_48213abc", "nameOrig": "C_1042", "nameDest": "M_8891"}},
+
+  {"id": "scn_02", "question": "Investigate TXN_146383 — full account drain via transfer.", "transaction_id": "TXN_146383", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "balance_drain",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 34500.00, "oldbalanceOrg": 34500.00, "newbalanceOrig": 0.0, "country_code": "US", "merchant_category": "online_retail", "device_fingerprint": "dev_new_x92", "nameOrig": "C_2201", "nameDest": "M_4410"}},
+
+  {"id": "scn_03", "question": "Rapid micro-transactions from TXN_69209.", "transaction_id": "TXN_69209", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "rapid_micro",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 1.47, "oldbalanceOrg": 820.00, "newbalanceOrig": 818.53, "country_code": "US", "merchant_category": "gaming", "device_fingerprint": "dev_0392aa", "nameOrig": "C_781", "nameDest": "M_1001"}},
+
+  {"id": "scn_04", "question": "TXN_221803 — round-amount CASH_OUT immediately after transfer.", "transaction_id": "TXN_221803", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "round_cashout",
+   "synthetic_txn": {"type": "CASH_OUT", "amount": 5000.00, "oldbalanceOrg": 7200.00, "newbalanceOrig": 2200.00, "country_code": "NG", "merchant_category": "atm", "device_fingerprint": "dev_8823ff", "nameOrig": "C_4502", "nameDest": "M_9920"}},
+
+  {"id": "scn_05", "question": "TXN_32807 — $10K round cashout from new device.", "transaction_id": "TXN_32807", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "round_cashout",
+   "synthetic_txn": {"type": "CASH_OUT", "amount": 10000.00, "oldbalanceOrg": 15300.00, "newbalanceOrig": 5300.00, "country_code": "CN", "merchant_category": "atm", "device_fingerprint": "new_dev_ab33", "nameOrig": "C_910", "nameDest": "M_2200"}},
+
+  {"id": "scn_06", "question": "TXN_234580 — balance drain to crypto merchant.", "transaction_id": "TXN_234580", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "balance_drain",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 8900.00, "oldbalanceOrg": 9100.00, "newbalanceOrig": 200.00, "country_code": "RU", "merchant_category": "crypto", "device_fingerprint": "dev_ffaa11", "nameOrig": "C_3301", "nameDest": "M_6621"}},
+
+  {"id": "scn_07", "question": "TXN_125716 — $0.99 micro-payment burst.", "transaction_id": "TXN_125716", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "rapid_micro",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 0.99, "oldbalanceOrg": 450.00, "newbalanceOrig": 449.01, "country_code": "US", "merchant_category": "gaming", "device_fingerprint": "dev_micro_01", "nameOrig": "C_109", "nameDest": "M_5500"}},
+
+  {"id": "scn_08", "question": "TXN_6456 — round $2K CASH_OUT from Nigeria.", "transaction_id": "TXN_6456", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "round_cashout",
+   "synthetic_txn": {"type": "CASH_OUT", "amount": 2000.00, "oldbalanceOrg": 4100.00, "newbalanceOrig": 2100.00, "country_code": "NG", "merchant_category": "atm", "device_fingerprint": "dev_ng_001", "nameOrig": "C_2782", "nameDest": "M_1092"}},
+
+  {"id": "scn_09", "question": "TXN_85304 — $3.20 micro-payment to gambling site.", "transaction_id": "TXN_85304", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "rapid_micro",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 3.20, "oldbalanceOrg": 1200.00, "newbalanceOrig": 1196.80, "country_code": "US", "merchant_category": "gambling", "device_fingerprint": "dev_gam_02", "nameOrig": "C_4023", "nameDest": "M_7711"}},
+
+  {"id": "scn_10", "question": "TXN_238951 — new-device transfer from Russia.", "transaction_id": "TXN_238951", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "new_device_country",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 6500.00, "oldbalanceOrg": 18000.00, "newbalanceOrig": 11500.00, "country_code": "RU", "merchant_category": "online_retail", "device_fingerprint": "new_dev_ru01", "nameOrig": "C_560", "nameDest": "M_3300"}},
+
+  {"id": "scn_11", "question": "TXN_84534 — round $20K cashout, new device.", "transaction_id": "TXN_84534", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "round_cashout",
+   "synthetic_txn": {"type": "CASH_OUT", "amount": 20000.00, "oldbalanceOrg": 45000.00, "newbalanceOrig": 25000.00, "country_code": "US", "merchant_category": "atm", "device_fingerprint": "new_dev_xx22", "nameOrig": "C_1901", "nameDest": "M_8801"}},
+
+  {"id": "scn_12", "question": "TXN_198819 — micro-payment card testing pattern.", "transaction_id": "TXN_198819", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "rapid_micro",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 1.00, "oldbalanceOrg": 500.00, "newbalanceOrig": 499.00, "country_code": "US", "merchant_category": "online_retail", "device_fingerprint": "dev_test_01", "nameOrig": "C_3999", "nameDest": "M_2201"}},
+
+  {"id": "scn_13", "question": "TXN_195978 — merchant category drift to crypto from grocery customer.", "transaction_id": "TXN_195978", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "merchant_drift",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 7800.00, "oldbalanceOrg": 22000.00, "newbalanceOrig": 14200.00, "country_code": "US", "merchant_category": "crypto", "device_fingerprint": "dev_usr_13", "nameOrig": "C_1500", "nameDest": "M_9901"}},
+
+  {"id": "scn_14", "question": "TXN_35421 — round $1K cashout + suspicious country.", "transaction_id": "TXN_35421", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "round_cashout",
+   "synthetic_txn": {"type": "CASH_OUT", "amount": 1000.00, "oldbalanceOrg": 3200.00, "newbalanceOrig": 2200.00, "country_code": "NG", "merchant_category": "atm", "device_fingerprint": "dev_ng_14", "nameOrig": "C_2100", "nameDest": "M_4402"}},
+
+  {"id": "scn_15", "question": "TXN_235955 — $2.50 micro burst.", "transaction_id": "TXN_235955", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "rapid_micro",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 2.50, "oldbalanceOrg": 900.00, "newbalanceOrig": 897.50, "country_code": "US", "merchant_category": "gaming", "device_fingerprint": "dev_gm_15", "nameOrig": "C_703", "nameDest": "M_1102"}},
+
+  {"id": "scn_16", "question": "TXN_38221 — balance drain via transfer, US-based.", "transaction_id": "TXN_38221", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "balance_drain",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 28000.00, "oldbalanceOrg": 28500.00, "newbalanceOrig": 500.00, "country_code": "US", "merchant_category": "online_retail", "device_fingerprint": "dev_drain_16", "nameOrig": "C_4401", "nameDest": "M_7701"}},
+
+  {"id": "scn_17", "question": "TXN_46284 — full drain to gambling.", "transaction_id": "TXN_46284", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "balance_drain",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 15000.00, "oldbalanceOrg": 15000.00, "newbalanceOrig": 0.0, "country_code": "US", "merchant_category": "gambling", "device_fingerprint": "dev_gbl_17", "nameOrig": "C_3200", "nameDest": "M_6002"}},
+
+  {"id": "scn_18", "question": "TXN_128030 — new device + China origin.", "transaction_id": "TXN_128030", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "new_device_country",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 4200.00, "oldbalanceOrg": 9000.00, "newbalanceOrig": 4800.00, "country_code": "CN", "merchant_category": "electronics", "device_fingerprint": "new_dev_cn18", "nameOrig": "C_801", "nameDest": "M_2290"}},
+
+  {"id": "scn_19", "question": "TXN_175550 — $50K round cashout.", "transaction_id": "TXN_175550", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "round_cashout",
+   "synthetic_txn": {"type": "CASH_OUT", "amount": 50000.00, "oldbalanceOrg": 120000.00, "newbalanceOrig": 70000.00, "country_code": "US", "merchant_category": "atm", "device_fingerprint": "dev_big_19", "nameOrig": "C_10", "nameDest": "M_9999"}},
+
+  {"id": "scn_20", "question": "TXN_208846 — $4.80 micro + gambling.", "transaction_id": "TXN_208846", "ground_truth": "fraud", "category": "clear_fraud", "expected_pattern": "rapid_micro",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 4.80, "oldbalanceOrg": 670.00, "newbalanceOrig": 665.20, "country_code": "US", "merchant_category": "gambling", "device_fingerprint": "dev_mic_20", "nameOrig": "C_2990", "nameDest": "M_5501"}},
+
+
+  {"id": "scn_21", "question": "TXN_50001 — large $8K legitimate business payment to known vendor.", "transaction_id": "TXN_50001", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 8000.00, "oldbalanceOrg": 95000.00, "newbalanceOrig": 87000.00, "country_code": "US", "merchant_category": "electronics", "device_fingerprint": "dev_biz_01", "nameOrig": "C_100", "nameDest": "M_200"}},
+
+  {"id": "scn_22", "question": "TXN_50002 — $15K transfer to savings at new bank, looks like drain.", "transaction_id": "TXN_50002", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 15000.00, "oldbalanceOrg": 42000.00, "newbalanceOrig": 27000.00, "country_code": "US", "merchant_category": "utilities", "device_fingerprint": "dev_usr_22", "nameOrig": "C_500", "nameDest": "M_501"}},
+
+  {"id": "scn_23", "question": "TXN_50003 — tourist making large purchase in Germany, new country.", "transaction_id": "TXN_50003", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 3200.00, "oldbalanceOrg": 28000.00, "newbalanceOrig": 24800.00, "country_code": "DE", "merchant_category": "electronics", "device_fingerprint": "dev_usr_23", "nameOrig": "C_1200", "nameDest": "M_8800"}},
+
+  {"id": "scn_24", "question": "TXN_50004 — expat sending $5K home, regular pattern.", "transaction_id": "TXN_50004", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 5000.00, "oldbalanceOrg": 18000.00, "newbalanceOrig": 13000.00, "country_code": "IN", "merchant_category": "utilities", "device_fingerprint": "dev_usr_24", "nameOrig": "C_300", "nameDest": "M_3001"}},
+
+  {"id": "scn_25", "question": "TXN_50005 — $12K car down payment, high amount but known merchant.", "transaction_id": "TXN_50005", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 12000.00, "oldbalanceOrg": 55000.00, "newbalanceOrig": 43000.00, "country_code": "US", "merchant_category": "electronics", "device_fingerprint": "dev_usr_25", "nameOrig": "C_410", "nameDest": "M_6600"}},
+
+  {"id": "scn_26", "question": "TXN_50006 — freelancer cashout of $2K, round amount but established pattern.", "transaction_id": "TXN_50006", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "CASH_OUT", "amount": 2000.00, "oldbalanceOrg": 8500.00, "newbalanceOrig": 6500.00, "country_code": "US", "merchant_category": "atm", "device_fingerprint": "dev_usr_26", "nameOrig": "C_607", "nameDest": "M_1001"}},
+
+  {"id": "scn_27", "question": "TXN_50007 — travel booking from UK, first-time country but expected.", "transaction_id": "TXN_50007", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 4500.00, "oldbalanceOrg": 32000.00, "newbalanceOrig": 27500.00, "country_code": "GB", "merchant_category": "travel", "device_fingerprint": "dev_usr_27", "nameOrig": "C_820", "nameDest": "M_7702"}},
+
+  {"id": "scn_28", "question": "TXN_50008 — crypto purchase from experienced trader, looks like merchant drift.", "transaction_id": "TXN_50008", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 3000.00, "oldbalanceOrg": 75000.00, "newbalanceOrig": 72000.00, "country_code": "US", "merchant_category": "crypto", "device_fingerprint": "dev_trader_28", "nameOrig": "C_15", "nameDest": "M_9902"}},
+
+  {"id": "scn_29", "question": "TXN_50009 — $25K wire for house closing, drains most of account.", "transaction_id": "TXN_50009", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 25000.00, "oldbalanceOrg": 27000.00, "newbalanceOrig": 2000.00, "country_code": "US", "merchant_category": "utilities", "device_fingerprint": "dev_usr_29", "nameOrig": "C_930", "nameDest": "M_4401"}},
+
+  {"id": "scn_30", "question": "TXN_50010 — large gaming purchase from known gamer account.", "transaction_id": "TXN_50010", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 500.00, "oldbalanceOrg": 3200.00, "newbalanceOrig": 2700.00, "country_code": "US", "merchant_category": "gaming", "device_fingerprint": "dev_gamer_30", "nameOrig": "C_2000", "nameDest": "M_5502"}},
+
+  {"id": "scn_31", "question": "TXN_50011 — Brazilian expat sending remittance home.", "transaction_id": "TXN_50011", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 1800.00, "oldbalanceOrg": 6200.00, "newbalanceOrig": 4400.00, "country_code": "BR", "merchant_category": "utilities", "device_fingerprint": "dev_usr_31", "nameOrig": "C_1105", "nameDest": "M_3302"}},
+
+  {"id": "scn_32", "question": "TXN_50012 — tax payment, large amount to government.", "transaction_id": "TXN_50012", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 9800.00, "oldbalanceOrg": 45000.00, "newbalanceOrig": 35200.00, "country_code": "US", "merchant_category": "utilities", "device_fingerprint": "dev_usr_32", "nameOrig": "C_220", "nameDest": "M_1"}},
+
+  {"id": "scn_33", "question": "TXN_50013 — $1K ATM withdrawal at airport, round amount.", "transaction_id": "TXN_50013", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "CASH_OUT", "amount": 1000.00, "oldbalanceOrg": 12000.00, "newbalanceOrig": 11000.00, "country_code": "FR", "merchant_category": "atm", "device_fingerprint": "dev_usr_33", "nameOrig": "C_1330", "nameDest": "M_4403"}},
+
+  {"id": "scn_34", "question": "TXN_50014 — tuition payment, large transfer overseas.", "transaction_id": "TXN_50014", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 18000.00, "oldbalanceOrg": 52000.00, "newbalanceOrig": 34000.00, "country_code": "GB", "merchant_category": "utilities", "device_fingerprint": "dev_usr_34", "nameOrig": "C_440", "nameDest": "M_8001"}},
+
+  {"id": "scn_35", "question": "TXN_50015 — holiday shopping spree, multiple large purchases.", "transaction_id": "TXN_50015", "ground_truth": "legitimate", "category": "false_positive_bait", "expected_pattern": "none",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 2800.00, "oldbalanceOrg": 15000.00, "newbalanceOrig": 12200.00, "country_code": "US", "merchant_category": "electronics", "device_fingerprint": "dev_usr_35", "nameOrig": "C_670", "nameDest": "M_5503"}},
+
+
+  {"id": "scn_36", "question": "TXN_60001 — moderate transfer from Russia to crypto platform.", "transaction_id": "TXN_60001", "ground_truth": "ambiguous", "category": "ambiguous", "expected_pattern": "partial_signals",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 450.00, "oldbalanceOrg": 5600.00, "newbalanceOrig": 5150.00, "country_code": "RU", "merchant_category": "crypto", "device_fingerprint": "dev_amb_01", "nameOrig": "C_1501", "nameDest": "M_3303"}},
+
+  {"id": "scn_37", "question": "TXN_60002 — new device but normal spending pattern.", "transaction_id": "TXN_60002", "ground_truth": "ambiguous", "category": "ambiguous", "expected_pattern": "partial_signals",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 120.00, "oldbalanceOrg": 4300.00, "newbalanceOrig": 4180.00, "country_code": "US", "merchant_category": "dining", "device_fingerprint": "new_dev_amb02", "nameOrig": "C_890", "nameDest": "M_2201"}},
+
+  {"id": "scn_38", "question": "TXN_60003 — slightly elevated amount + first-time merchant category.", "transaction_id": "TXN_60003", "ground_truth": "ambiguous", "category": "ambiguous", "expected_pattern": "partial_signals",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 680.00, "oldbalanceOrg": 2100.00, "newbalanceOrig": 1420.00, "country_code": "US", "merchant_category": "gaming", "device_fingerprint": "dev_amb_03", "nameOrig": "C_2300", "nameDest": "M_5504"}},
+
+  {"id": "scn_39", "question": "TXN_60004 — transfer that drains 60% of balance, not quite drain.", "transaction_id": "TXN_60004", "ground_truth": "ambiguous", "category": "ambiguous", "expected_pattern": "partial_signals",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 3000.00, "oldbalanceOrg": 5000.00, "newbalanceOrig": 2000.00, "country_code": "US", "merchant_category": "online_retail", "device_fingerprint": "dev_amb_04", "nameOrig": "C_1700", "nameDest": "M_6603"}},
+
+  {"id": "scn_40", "question": "TXN_60005 — round $5K payment, but to known utilities provider.", "transaction_id": "TXN_60005", "ground_truth": "ambiguous", "category": "ambiguous", "expected_pattern": "partial_signals",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 5000.00, "oldbalanceOrg": 22000.00, "newbalanceOrig": 17000.00, "country_code": "US", "merchant_category": "utilities", "device_fingerprint": "dev_amb_05", "nameOrig": "C_350", "nameDest": "M_1002"}},
+
+  {"id": "scn_41", "question": "TXN_60006 — cashout from China at gambling site.", "transaction_id": "TXN_60006", "ground_truth": "ambiguous", "category": "ambiguous", "expected_pattern": "partial_signals",
+   "synthetic_txn": {"type": "CASH_OUT", "amount": 800.00, "oldbalanceOrg": 6500.00, "newbalanceOrig": 5700.00, "country_code": "CN", "merchant_category": "gambling", "device_fingerprint": "dev_amb_06", "nameOrig": "C_3100", "nameDest": "M_4404"}},
+
+  {"id": "scn_42", "question": "TXN_60007 — crypto purchase from Russia, below usual threshold.", "transaction_id": "TXN_60007", "ground_truth": "ambiguous", "category": "ambiguous", "expected_pattern": "partial_signals",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 150.00, "oldbalanceOrg": 8900.00, "newbalanceOrig": 8750.00, "country_code": "RU", "merchant_category": "crypto", "device_fingerprint": "dev_amb_07", "nameOrig": "C_2500", "nameDest": "M_9903"}},
+
+  {"id": "scn_43", "question": "TXN_60008 — transfer to new recipient but within normal amount.", "transaction_id": "TXN_60008", "ground_truth": "ambiguous", "category": "ambiguous", "expected_pattern": "partial_signals",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 200.00, "oldbalanceOrg": 3400.00, "newbalanceOrig": 3200.00, "country_code": "US", "merchant_category": "online_retail", "device_fingerprint": "dev_amb_08", "nameOrig": "C_4100", "nameDest": "M_9100"}},
+
+  {"id": "scn_44", "question": "TXN_60009 — payment from India, unusual for this account.", "transaction_id": "TXN_60009", "ground_truth": "ambiguous", "category": "ambiguous", "expected_pattern": "partial_signals",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 75.00, "oldbalanceOrg": 1100.00, "newbalanceOrig": 1025.00, "country_code": "IN", "merchant_category": "dining", "device_fingerprint": "dev_amb_09", "nameOrig": "C_990", "nameDest": "M_2202"}},
+
+  {"id": "scn_45", "question": "TXN_60010 — gambling site payment, but customer has history.", "transaction_id": "TXN_60010", "ground_truth": "ambiguous", "category": "ambiguous", "expected_pattern": "partial_signals",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 250.00, "oldbalanceOrg": 4000.00, "newbalanceOrig": 3750.00, "country_code": "US", "merchant_category": "gambling", "device_fingerprint": "dev_amb_10", "nameOrig": "C_1800", "nameDest": "M_7712"}},
+
+
+  {"id": "scn_46", "question": "TXN_70001 — slow-drip micro-drain: $8.50/day for 60 days bleeds account.", "transaction_id": "TXN_70001", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "slow_drip_micro_drain",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 8.50, "oldbalanceOrg": 2200.00, "newbalanceOrig": 2191.50, "country_code": "US", "merchant_category": "online_retail", "device_fingerprint": "dev_drip_01", "nameOrig": "C_3500", "nameDest": "M_4405"},
+   "notes": "Each individual txn looks normal. Only the pattern over 60 days reveals fraud. Rules engine sees one $8.50 payment — no rules fire."},
+
+  {"id": "scn_47", "question": "TXN_70002 — merchant collusion: legit-looking payments to shell company.", "transaction_id": "TXN_70002", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "merchant_collusion",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 340.00, "oldbalanceOrg": 12000.00, "newbalanceOrig": 11660.00, "country_code": "US", "merchant_category": "grocery", "device_fingerprint": "dev_coll_02", "nameOrig": "C_720", "nameDest": "M_shell_01"},
+   "notes": "Payment to a grocery merchant that is actually a shell company. Amount, category, country all look normal. Only cross-referencing merchant reputation reveals fraud."},
+
+  {"id": "scn_48", "question": "TXN_70003 — laundering via legitimate CASH_IN chain: deposit-then-transfer cycle.", "transaction_id": "TXN_70003", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "cashin_laundering_chain",
+   "synthetic_txn": {"type": "CASH_IN", "amount": 4900.00, "oldbalanceOrg": 200.00, "newbalanceOrig": 5100.00, "country_code": "US", "merchant_category": "atm", "device_fingerprint": "dev_laun_03", "nameOrig": "C_4200", "nameDest": "M_4406"},
+   "notes": "Structured deposits just under $5K reporting threshold, followed by transfers. CASH_IN type is never flagged by rules. Only pattern analysis across related accounts reveals laundering."},
+
+  {"id": "scn_49", "question": "TXN_70004 — account takeover via SIM swap: normal amounts from new device in same country.", "transaction_id": "TXN_70004", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "sim_swap_takeover",
+   "synthetic_txn": {"type": "TRANSFER", "amount": 2500.00, "oldbalanceOrg": 18000.00, "newbalanceOrig": 15500.00, "country_code": "US", "merchant_category": "online_retail", "device_fingerprint": "new_dev_sim04", "nameOrig": "C_1600", "nameDest": "M_7703"},
+   "notes": "Normal amount, normal country, normal category. Only the new device fingerprint is suspicious, but rules require BOTH new device AND new country. SIM swap evades the combo rule."},
+
+  {"id": "scn_50", "question": "TXN_70005 — synthetic identity fraud: consistent behavior from fabricated identity.", "transaction_id": "TXN_70005", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "synthetic_identity",
+   "synthetic_txn": {"type": "PAYMENT", "amount": 950.00, "oldbalanceOrg": 7500.00, "newbalanceOrig": 6550.00, "country_code": "US", "merchant_category": "electronics", "device_fingerprint": "dev_synth_05", "nameOrig": "C_synth_01", "nameDest": "M_5505"},
+   "notes": "Fabricated identity has built up 3 months of normal-looking history. This payment looks indistinguishable from legitimate. Only cross-referencing identity signals reveals the synthetic origin."}
+]

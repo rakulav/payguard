@@ -1,0 +1,38 @@
+{
+  "benchmark_run_at": "2026-04-18T05:16:31.387158+00:00",
+  "scenarios_run": 50,
+  "scenario_mix": {
+    "clear_fraud": 20,
+    "false_positive_bait": 15,
+    "ambiguous": 10,
+    "adversarial": 5
+  },
+  "rules": {
+    "precision": 0.9524,
+    "recall": 0.5085,
+    "f1": 0.663,
+    "tp": 12.0,
+    "fp": 0.6,
+    "fn": 11.6,
+    "tn": 13,
+    "ambiguous_accuracy": 0.3
+  },
+  "agent": {
+    "precision": 0.8333,
+    "recall": 0.3756,
+    "f1": 0.5178,
+    "tp": 8.0,
+    "fp": 1.6,
+    "fn": 13.3,
+    "tn": 12,
+    "ambiguous_accuracy": 0.4
+  },
+  "rules_adversarial_caught": 0,
+  "agent_adversarial_caught": 0,
+  "adversarial_improvement_pct": null,
+  "f1_lift_pct": -21.9,
+  "median_rules_latency_ms": 1,
+  "median_agent_latency_ms": 36120,
+  "benchmark_api_url": "http://api:8000",
+  "mock_llm_respected": false
+}

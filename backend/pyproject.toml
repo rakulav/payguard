@@ -1,0 +1,40 @@
+[project]
+name = "payguard-backend"
+version = "1.0.0"
+description = "PayGuard: LLM-Powered Payment Fraud Investigation Assistant"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "strawberry-graphql[fastapi]==0.254.1",
+    "anthropic==0.52.0",
+    "langgraph==0.2.60",
+    "langchain-core==0.3.28",
+    "sqlalchemy[asyncio]==2.0.36",
+    "asyncpg==0.30.0",
+    "psycopg2-binary==2.9.10",
+    "pgvector==0.3.6",
+    "qdrant-client==1.12.1",
+    "opensearch-py==2.8.0",
+    "fastembed==0.4.2",
+    "pandas==2.2.3",
+    "pyarrow==18.1.0",
+    "numpy==1.26.4",
+    "faker==33.1.0",
+    "requests==2.32.3",
+    "tqdm==4.67.1",
+    "python-dotenv==1.0.1",
+    "sse-starlette==2.2.1",
+    "pydantic==2.10.3",
+    "pydantic-settings==2.7.0",
+    "httpx==0.28.1",
+    "pytest==8.3.4",
+    "pytest-asyncio==0.24.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
