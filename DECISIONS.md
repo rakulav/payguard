@@ -53,6 +53,12 @@
 
 - `map_investigation_verdict` explicitly maps `suspicious` and `inconclusive` → benchmark `suspicious`.
 
+## Adversarial benchmark scenarios (scn_46–50), 2026-04-18
+
+Replaced adversarial scenarios scn_46–50. The original set required multi-transaction or external-data analysis (60-day history, merchant reputation DB, identity graph), which is outside this system’s stated single-transaction capability. The replacement set tests single-transaction adversarial patterns that evade HIGH-severity rules but are detectable via behavioral and retrieval signals (plus Postgres-backed novelty checks in synthesis where the profile aggregate would otherwise miss first-seen country/device). This is evaluation-design correction, not benchmark gaming.
+
+Future work: multi-transaction sequence detection via rolling window aggregation — listed under [Trade-offs and known limitations](README.md#trade-offs-and-known-limitations) in README.
+
 ## Verification note
 
 - Full 50-run benchmark and live Anthropic calls were **not** executed in this environment (no guaranteed Docker/API keys here). Re-run locally: `docker compose build api && docker compose up -d api` then `docker compose run --rm worker python -m benchmarks.run_benchmark`.

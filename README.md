@@ -150,6 +150,7 @@ Local Python (without Docker): `cd backend && pip install ruff black pytest && r
 - Approval flow is a single shared gate without RBAC or SSO.
 - No Anthropic prompt caching yet (would materially cut input cost).
 - Rules baseline is intentionally simple so the agent comparison is meaningful on novel patterns.
+- Investigations are **single-transaction** (one row + customer aggregate + retrieval). Sequence fraud (rolling windows, cross-account chains, 60-day drip patterns) is not modeled; see `DECISIONS.md` for the adversarial benchmark redesign note.
 
 ## What I would build next
 

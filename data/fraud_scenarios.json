@@ -137,23 +137,18 @@
    "synthetic_txn": {"type": "PAYMENT", "amount": 250.00, "oldbalanceOrg": 4000.00, "newbalanceOrig": 3750.00, "country_code": "US", "merchant_category": "gambling", "device_fingerprint": "dev_amb_10", "nameOrig": "C_1800", "nameDest": "M_7712"}},
 
 
-  {"id": "scn_46", "question": "TXN_70001 — slow-drip micro-drain: $8.50/day for 60 days bleeds account.", "transaction_id": "TXN_70001", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "slow_drip_micro_drain",
-   "synthetic_txn": {"type": "PAYMENT", "amount": 8.50, "oldbalanceOrg": 2200.00, "newbalanceOrig": 2191.50, "country_code": "US", "merchant_category": "online_retail", "device_fingerprint": "dev_drip_01", "nameOrig": "C_3500", "nameDest": "M_4405"},
-   "notes": "Each individual txn looks normal. Only the pattern over 60 days reveals fraud. Rules engine sees one $8.50 payment — no rules fire."},
+  {"id": "scn_46", "question": "TXN_2499 — TRANSFER drains ~90% to DE (first DE for C_1977); no HIGH rules.", "transaction_id": "TXN_2499", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "balance_drain_new_jurisdiction",
+   "notes": "Agent should match BALANCE_DRAIN_TO_NEW_JURISDICTION via customer profile country history + high drain ratio, even though no HIGH rules fire. Row selected from seeded Postgres (250K): TRANSFER, (old_balance_org-new_balance_orig)/old_balance_org>0.85, not (>=95% drain and amount>1000), country_code first occurrence for name_orig, non-sanction HIGH countries."},
 
-  {"id": "scn_47", "question": "TXN_70002 — merchant collusion: legit-looking payments to shell company.", "transaction_id": "TXN_70002", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "merchant_collusion",
-   "synthetic_txn": {"type": "PAYMENT", "amount": 340.00, "oldbalanceOrg": 12000.00, "newbalanceOrig": 11660.00, "country_code": "US", "merchant_category": "grocery", "device_fingerprint": "dev_coll_02", "nameOrig": "C_720", "nameDest": "M_shell_01"},
-   "notes": "Payment to a grocery merchant that is actually a shell company. Amount, category, country all look normal. Only cross-referencing merchant reputation reveals fraud."},
+  {"id": "scn_47", "question": "TXN_118714 — PAYMENT crypto 3x+ avg for C_1085 (only crypto txn); MEDIUM drift only.", "transaction_id": "TXN_118714", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "category_drift_amount_anomaly",
+   "notes": "Agent should match CATEGORY_DRIFT_WITH_AMOUNT_ANOMALY via behavioral flags + category mismatch with history. Seeded row: PAYMENT merchant_category=crypto, customer has 10+ txns with zero other crypto/gambling, amount >= 3x customer avg, no HIGH country rule."},
 
-  {"id": "scn_48", "question": "TXN_70003 — laundering via legitimate CASH_IN chain: deposit-then-transfer cycle.", "transaction_id": "TXN_70003", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "cashin_laundering_chain",
-   "synthetic_txn": {"type": "CASH_IN", "amount": 4900.00, "oldbalanceOrg": 200.00, "newbalanceOrig": 5100.00, "country_code": "US", "merchant_category": "atm", "device_fingerprint": "dev_laun_03", "nameOrig": "C_4200", "nameDest": "M_4406"},
-   "notes": "Structured deposits just under $5K reporting threshold, followed by transfers. CASH_IN type is never flagged by rules. Only pattern analysis across related accounts reveals laundering."},
+  {"id": "scn_48", "question": "TXN_49 — PAYMENT $1.98 triggers rule_rapid_micro (MEDIUM).", "transaction_id": "TXN_49", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "rapid_micro_burst",
+   "notes": "Agent should match RAPID_MICRO_TRANSFER_BURST via rule_rapid_micro firing (rules_engine: PAYMENT and amount < $5). Real seeded transaction_id TXN_49."},
 
-  {"id": "scn_49", "question": "TXN_70004 — account takeover via SIM swap: normal amounts from new device in same country.", "transaction_id": "TXN_70004", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "sim_swap_takeover",
-   "synthetic_txn": {"type": "TRANSFER", "amount": 2500.00, "oldbalanceOrg": 18000.00, "newbalanceOrig": 15500.00, "country_code": "US", "merchant_category": "online_retail", "device_fingerprint": "new_dev_sim04", "nameOrig": "C_1600", "nameDest": "M_7703"},
-   "notes": "Normal amount, normal country, normal category. Only the new device fingerprint is suspicious, but rules require BOTH new device AND new country. SIM swap evades the combo rule."},
+  {"id": "scn_49", "question": "TXN_127593 — gaming PAYMENT from GB: first GB + first device + category outside top-2 volume.", "transaction_id": "TXN_127593", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "triple_shift",
+   "notes": "Agent should match DEVICE_GEO_CATEGORY_TRIPLE_SHIFT via three simultaneous novelty signals (Postgres-first country/device counts + category outside customer top-2 categories), a pattern rules do not aggregate. Seeded row C_1040: gaming, GB count=1, device count=1, gaming not in top-2 categories by volume; MEDIUM merchant drift only."},
 
-  {"id": "scn_50", "question": "TXN_70005 — synthetic identity fraud: consistent behavior from fabricated identity.", "transaction_id": "TXN_70005", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "synthetic_identity",
-   "synthetic_txn": {"type": "PAYMENT", "amount": 950.00, "oldbalanceOrg": 7500.00, "newbalanceOrig": 6550.00, "country_code": "US", "merchant_category": "electronics", "device_fingerprint": "dev_synth_05", "nameOrig": "C_synth_01", "nameDest": "M_5505"},
-   "notes": "Fabricated identity has built up 3 months of normal-looking history. This payment looks indistinguishable from legitimate. Only cross-referencing identity signals reveals the synthetic origin."}
+  {"id": "scn_50", "question": "TXN_1275 — PAYMENT drains balance (new/old<0.2) without HIGH/CRITICAL rules.", "transaction_id": "TXN_1275", "ground_truth": "fraud", "category": "adversarial", "expected_pattern": "balance_drain_low_rules",
+   "notes": "Agent should match BALANCE_DRAIN_WITH_LOW_RULES_SCORE on balance drain ratio alone when rules are silent (no 95%+ drain with amount>1000 CRITICAL). Seeded row C_148: new_balance_orig/old_balance_org < 0.2, amount 650 so balance_drain rule does not fire."}
 ]

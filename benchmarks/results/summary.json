@@ -1,5 +1,5 @@
 {
-  "benchmark_run_at": "2026-04-18T17:40:25.073615+00:00",
+  "benchmark_run_at": "2026-04-18T23:28:15.694262+00:00",
   "scenarios_run": 50,
   "scenario_mix": {
     "clear_fraud": 20,
@@ -9,30 +9,30 @@
   },
   "rules": {
     "precision": 0.9524,
-    "recall": 0.5085,
-    "f1": 0.663,
+    "recall": 0.531,
+    "f1": 0.6818,
     "tp": 12.0,
     "fp": 0.6,
-    "fn": 11.6,
+    "fn": 10.6,
     "tn": 13,
     "ambiguous_accuracy": 0.3
   },
   "agent": {
-    "precision": 0.7623,
-    "recall": 0.68,
-    "f1": 0.7188,
-    "tp": 17.0,
-    "fp": 5.3,
-    "fn": 8.0,
-    "tn": 11,
+    "precision": 0.7987,
+    "recall": 0.9434,
+    "f1": 0.8651,
+    "tp": 25.0,
+    "fp": 6.3,
+    "fn": 1.5,
+    "tn": 10,
     "ambiguous_accuracy": 0.1
   },
-  "rules_adversarial_caught": 0,
-  "agent_adversarial_caught": 0,
-  "adversarial_improvement_pct": null,
-  "f1_lift_pct": 8.4,
+  "rules_adversarial_caught": 2,
+  "agent_adversarial_caught": 5,
+  "adversarial_improvement_pct": 150.0,
+  "f1_lift_pct": 26.9,
   "median_rules_latency_ms": 1,
-  "median_agent_latency_ms": 20178,
+  "median_agent_latency_ms": 20083,
   "benchmark_api_url": "http://api:8000",
   "mock_llm_respected": false
 }

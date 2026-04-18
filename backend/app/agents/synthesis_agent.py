@@ -6,10 +6,13 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from sqlalchemy import text
+
 from app.llm import call_llm
 from app.mcp_servers.evidence_writer import evidence_writer
 from app.audit_service import append_audit
 from app.cost_tracker import usage_record
+from app.db import sync_engine
 
 SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "synthesis.txt").read_text()
 
@@ -105,6 +108,109 @@ def _any_high_or_critical(rules: list) -> bool:
     return any(r.get("severity") in ("HIGH", "CRITICAL") for r in rules)
 
 
+def _pg_count_customer_country(name_orig: str, country_code: str) -> int:
+    if not name_orig or not country_code:
+        return 9999
+    try:
+        with sync_engine.connect() as conn:
+            return int(
+                conn.execute(
+                    text(
+                        "SELECT COUNT(*)::int FROM transactions "
+                        "WHERE name_orig = :o AND country_code = :cc"
+                    ),
+                    {"o": name_orig, "cc": country_code},
+                ).scalar_one()
+            )
+    except Exception:
+        return 9999
+
+
+def _pg_count_customer_device(name_orig: str, device_fp: str) -> int:
+    if not name_orig or not device_fp:
+        return 9999
+    try:
+        with sync_engine.connect() as conn:
+            return int(
+                conn.execute(
+                    text(
+                        "SELECT COUNT(*)::int FROM transactions "
+                        "WHERE name_orig = :o AND device_fingerprint = :d"
+                    ),
+                    {"o": name_orig, "d": device_fp},
+                ).scalar_one()
+            )
+    except Exception:
+        return 9999
+
+
+def _pg_count_customer_category(name_orig: str, merchant_category: str) -> int:
+    if not name_orig or not merchant_category:
+        return 9999
+    try:
+        with sync_engine.connect() as conn:
+            return int(
+                conn.execute(
+                    text(
+                        "SELECT COUNT(*)::int FROM transactions "
+                        "WHERE name_orig = :o AND merchant_category = :m"
+                    ),
+                    {"o": name_orig, "m": merchant_category},
+                ).scalar_one()
+            )
+    except Exception:
+        return 9999
+
+
+def _pg_top_two_categories(name_orig: str) -> list[str]:
+    if not name_orig:
+        return []
+    try:
+        with sync_engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT merchant_category FROM transactions WHERE name_orig = :o "
+                    "GROUP BY merchant_category ORDER BY COUNT(*) DESC LIMIT 2"
+                ),
+                {"o": name_orig},
+            ).fetchall()
+        return [str(r[0]) for r in rows if r[0]]
+    except Exception:
+        return []
+
+
+def _pg_customer_total_txns(name_orig: str) -> int:
+    if not name_orig:
+        return 0
+    try:
+        with sync_engine.connect() as conn:
+            return int(
+                conn.execute(
+                    text("SELECT COUNT(*)::int FROM transactions WHERE name_orig = :o"),
+                    {"o": name_orig},
+                ).scalar_one()
+            )
+    except Exception:
+        return 0
+
+
+def _pg_avg_amount(name_orig: str) -> float:
+    if not name_orig:
+        return 0.0
+    try:
+        with sync_engine.connect() as conn:
+            v = conn.execute(
+                text(
+                    "SELECT COALESCE(AVG(amount), 0)::float FROM transactions "
+                    "WHERE name_orig = :o"
+                ),
+                {"o": name_orig},
+            ).scalar_one()
+        return float(v or 0.0)
+    except Exception:
+        return 0.0
+
+
 def _adversarial_patterns_matched(
     triage_result: dict,
     behavior_result: dict | None,
@@ -115,22 +221,21 @@ def _adversarial_patterns_matched(
     matched: list[str] = []
     fb = _flags_blob(behavior_result)
     known_cats, known_cc, ntx = _profile_known(behavior_result)
+    cust = str(txn.get("name_orig") or "")
+    cc = str(txn.get("country_code") or "")
+    cat = str(txn.get("merchant_category") or "")
+    fp_raw = str(txn.get("device_fingerprint") or "")
+    fp = fp_raw.lower()
 
     # 1 — Balance drain >80% to new jurisdiction
     if _drain_fraction(txn) > 0.8:
         novel = (
             "new_country" in fb
             or "category_drift" in fb
-            or (
-                bool(str(txn.get("country_code") or ""))
-                and known_cc
-                and str(txn.get("country_code") or "") not in known_cc
-            )
-            or (
-                bool(txn.get("merchant_category"))
-                and known_cats
-                and str(txn.get("merchant_category") or "") not in known_cats
-            )
+            or (cc and _pg_count_customer_country(cust, cc) == 1)
+            or (cat and _pg_count_customer_category(cust, cat) == 1)
+            or (bool(cc) and known_cc and cc not in known_cc)
+            or (bool(cat) and known_cats and cat not in known_cats)
         )
         if novel:
             matched.append("BALANCE_DRAIN_TO_NEW_JURISDICTION")
@@ -158,24 +263,41 @@ def _adversarial_patterns_matched(
             if concentrated and risky and amt >= 3 * avg_amt:
                 matched.append("CATEGORY_DRIFT_WITH_AMOUNT_ANOMALY")
 
+    # 2b — Same pattern using Postgres only (behavior/profile may be skipped or stale)
+    mc_raw = str(txn.get("merchant_category") or "")
+    if (
+        str(txn.get("type") or "").upper() == "PAYMENT"
+        and mc_raw.lower() in ("crypto", "gambling", "gaming")
+        and cust
+    ):
+        tot = _pg_customer_total_txns(cust)
+        cat_cnt = _pg_count_customer_category(cust, mc_raw)
+        avg_pg = _pg_avg_amount(cust) or 100.0
+        if tot >= 10 and cat_cnt == 1 and float(txn.get("amount") or 0) >= 3 * avg_pg:
+            matched.append("CATEGORY_DRIFT_WITH_AMOUNT_ANOMALY")
+
     # 3 — Rapid micro burst (rules engine marks single-txn leg of burst)
     if any(r.get("id") == "rule_rapid_micro" for r in rules):
         matched.append("RAPID_MICRO_TRANSFER_BURST")
 
     # 4 — Device + geography + category triple shift
-    fp = str(txn.get("device_fingerprint") or "").lower()
-    new_dev = fp.startswith("new_dev") or "new_device" in fb
-    new_geo = "new_country" in fb or (
-        bool(str(txn.get("country_code") or ""))
-        and known_cc
-        and str(txn.get("country_code") or "") not in known_cc
+    top2_pg = _pg_top_two_categories(cust)
+    novel_device = (
+        fp.startswith("new_dev")
+        or "new_device" in fb
+        or (fp_raw and _pg_count_customer_device(cust, fp_raw) == 1)
     )
-    cat_shift = "category_drift" in fb or (
-        bool(txn.get("merchant_category"))
-        and known_cats
-        and str(txn.get("merchant_category") or "") not in known_cats
+    new_geo = (
+        "new_country" in fb
+        or (cc and _pg_count_customer_country(cust, cc) == 1)
+        or (bool(cc) and known_cc and cc not in known_cc)
     )
-    if new_dev and new_geo and cat_shift:
+    cat_shift = (
+        "category_drift" in fb
+        or (bool(cat) and known_cats and cat not in known_cats)
+        or (bool(cat) and top2_pg and cat not in top2_pg)
+    )
+    if novel_device and new_geo and cat_shift:
         matched.append("DEVICE_GEO_CATEGORY_TRIPLE_SHIFT")
 
     # 5 — Drain (balance ratio) with no HIGH/CRITICAL rules
