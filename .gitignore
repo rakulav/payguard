@@ -6,6 +6,7 @@ __pycache__/
 .pytest_cache/
 node_modules/
 .next/
+frontend/tsconfig.tsbuildinfo
 *.egg-info/
 .venv/
 venv/
