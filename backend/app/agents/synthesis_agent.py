@@ -160,7 +160,9 @@ def _merge_llm_parsed_and_guardrail(
     behavior_result: dict | None,
     llm_mock: bool,
 ) -> tuple[str, str, float, bool, str]:
-    h_v, h_r, h_c, h_req, h_reason = _heuristic_synthesis(triage_result, behavior_result)
+    h_v, h_r, h_c, h_req, h_reason = _heuristic_synthesis(
+        triage_result, behavior_result
+    )
     if parsed and not llm_mock:
         verdict = _normalize_verdict(str(parsed.get("verdict", "")))
         try:
@@ -168,7 +170,9 @@ def _merge_llm_parsed_and_guardrail(
         except (TypeError, ValueError):
             conf = 0.7
         conf = min(max(conf, 0.05), 0.99)
-        rec, req = _normalize_recommendation(parsed.get("recommendation"), verdict, conf)
+        rec, req = _normalize_recommendation(
+            parsed.get("recommendation"), verdict, conf
+        )
         reasoning = str(parsed.get("reasoning") or "")
         if verdict == "legitimate" and h_v == "fraud":
             verdict, rec, conf, req = h_v, h_r, max(conf, h_c), h_req
@@ -208,10 +212,13 @@ async def run_synthesis(
         behavioral_flags = behavior_result.get("behavioral_flags", [])
 
     txn = triage_result.get("transaction", {})
-    rules_text = "\n".join(
-        f"  - {r['name']} ({r['severity']}): {r.get('detail', 'N/A')}"
-        for r in rules_fired
-    ) or "  None"
+    rules_text = (
+        "\n".join(
+            f"  - {r['name']} ({r['severity']}): {r.get('detail', 'N/A')}"
+            for r in rules_fired
+        )
+        or "  None"
+    )
 
     behavior_text = "Not run (triage indicated sufficient confidence without behavior)."
     if behavior_result:
@@ -233,11 +240,15 @@ async def run_synthesis(
         f"End with ONLY the JSON object (verdict, confidence, recommendation, reasoning)."
     )
 
-    llm_result = call_llm(SYSTEM_PROMPT, user_msg, agent_type="synthesis", agent_role="synthesis")
+    llm_result = call_llm(
+        SYSTEM_PROMPT, user_msg, agent_type="synthesis", agent_role="synthesis"
+    )
     parsed = _extract_synthesis_json(llm_result)
 
-    verdict, recommendation, confidence, requires_approval, syn_reason = _merge_llm_parsed_and_guardrail(
-        parsed, triage_result, behavior_result, bool(llm_result.get("mock"))
+    verdict, recommendation, confidence, requires_approval, syn_reason = (
+        _merge_llm_parsed_and_guardrail(
+            parsed, triage_result, behavior_result, bool(llm_result.get("mock"))
+        )
     )
     confidence = round(float(confidence), 2)
 
@@ -276,7 +287,11 @@ async def run_synthesis(
         investigation_id,
         "synthesis_agent",
         "agent_verdict",
-        new_state={"verdict": verdict, "confidence": confidence, "recommendation": recommendation},
+        new_state={
+            "verdict": verdict,
+            "confidence": confidence,
+            "recommendation": recommendation,
+        },
         reason=syn_reason[:500],
     )
 
@@ -287,12 +302,19 @@ async def run_synthesis(
         "rules_fired": [r.get("name", "") for r in rules_fired],
         "behavior_score": behavior_score,
         "behavioral_flags": behavioral_flags,
-        "fraud_match_ratio": _fraud_match_ratio(behavior_result) if behavior_result else None,
+        "fraud_match_ratio": (
+            _fraud_match_ratio(behavior_result) if behavior_result else None
+        ),
         "summary": summary,
         "synthesis_reasoning": syn_reason,
     }
 
-    emit({"type": "tool_call", "content": f"Calling evidence_writer(investigation={investigation_id}, verdict={verdict}, recommendation={recommendation})"})
+    emit(
+        {
+            "type": "tool_call",
+            "content": f"Calling evidence_writer(investigation={investigation_id}, verdict={verdict}, recommendation={recommendation})",
+        }
+    )
     write_result = await evidence_writer(
         investigation_id=investigation_id,
         verdict=verdict,
@@ -300,7 +322,12 @@ async def run_synthesis(
         recommendation=recommendation,
         confidence=confidence,
     )
-    emit({"type": "tool_result", "content": f"Evidence written. Status: {write_result['status']}"})
+    emit(
+        {
+            "type": "tool_result",
+            "content": f"Evidence written. Status: {write_result['status']}",
+        }
+    )
 
     if requires_approval:
         await append_audit(
@@ -310,12 +337,17 @@ async def run_synthesis(
             new_state={"verdict": verdict, "recommendation": recommendation},
             reason=f"severity_auto confidence={confidence}",
         )
-        emit({"type": "approval_required", "content": {
-            "investigation_id": investigation_id,
-            "recommendation": recommendation,
-            "verdict": verdict,
-            "summary": summary,
-        }})
+        emit(
+            {
+                "type": "approval_required",
+                "content": {
+                    "investigation_id": investigation_id,
+                    "recommendation": recommendation,
+                    "verdict": verdict,
+                    "summary": summary,
+                },
+            }
+        )
 
     result = {
         "verdict": verdict,
@@ -328,11 +360,16 @@ async def run_synthesis(
         "llm_usage": llm_usage,
     }
 
-    emit({"type": "verdict", "content": {
-        "verdict": result["verdict"],
-        "confidence": result["confidence"],
-        "recommendation": result["recommendation"],
-        "requires_approval": result["requires_approval"],
-    }})
+    emit(
+        {
+            "type": "verdict",
+            "content": {
+                "verdict": result["verdict"],
+                "confidence": result["confidence"],
+                "recommendation": result["recommendation"],
+                "requires_approval": result["requires_approval"],
+            },
+        }
+    )
 
     return result

@@ -1,4 +1,6 @@
 .env
+.env.local
+.env.*.local
 *.pyc
 __pycache__/
 .pytest_cache/
@@ -7,3 +9,14 @@ node_modules/
 *.egg-info/
 .venv/
 venv/
+.idea/
+.vscode/
+!.vscode/extensions.json
+
+# Benchmark outputs (keep directory)
+benchmarks/results/*.csv
+!benchmarks/results/.gitkeep
+
+# Large generated data (regenerate via seed / fetch_or_generate)
+data/transactions.parquet
+data/*.csv

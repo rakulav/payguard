@@ -2,9 +2,7 @@
 
 from typing import Optional
 import strawberry
-from strawberry.types import Info
-from sqlalchemy import select, func
-from datetime import datetime
+from sqlalchemy import select
 
 from app.db import AsyncSessionLocal, Transaction, Investigation
 from app.mcp_servers.transaction_lookup import transaction_lookup
@@ -122,7 +120,9 @@ class Query:
     async def investigations(self, limit: int = 20) -> list[InvestigationType]:
         async with AsyncSessionLocal() as db:
             result = await db.execute(
-                select(Investigation).order_by(Investigation.created_at.desc()).limit(limit)
+                select(Investigation)
+                .order_by(Investigation.created_at.desc())
+                .limit(limit)
             )
             rows = result.scalars().all()
             return [
@@ -167,6 +167,7 @@ class Mutation:
         try:
             result = await transaction_lookup(transaction_id)
             import json
+
             return MCPResult(success=True, data=json.dumps(result))
         except Exception as e:
             return MCPResult(success=False, error=str(e))
@@ -176,6 +177,7 @@ class Mutation:
         try:
             result = await customer_profile(customer_id)
             import json
+
             return MCPResult(success=True, data=json.dumps(result))
         except Exception as e:
             return MCPResult(success=False, error=str(e))
@@ -187,6 +189,7 @@ class Mutation:
         try:
             result = await similar_fraud_search(transaction_id=transaction_id, k=k)
             import json
+
             return MCPResult(success=True, data=json.dumps(result))
         except Exception as e:
             return MCPResult(success=False, error=str(e))
@@ -196,6 +199,7 @@ class Mutation:
         try:
             result = await rules_engine(transaction_id)
             import json
+
             return MCPResult(success=True, data=json.dumps(result))
         except Exception as e:
             return MCPResult(success=False, error=str(e))
@@ -210,8 +214,11 @@ class Mutation:
     ) -> MCPResult:
         try:
             import json
+
             ev = json.loads(evidence) if evidence else {}
-            result = await evidence_writer(investigation_id, verdict, ev, recommendation)
+            result = await evidence_writer(
+                investigation_id, verdict, ev, recommendation
+            )
             return MCPResult(success=True, data=json.dumps(result))
         except Exception as e:
             return MCPResult(success=False, error=str(e))

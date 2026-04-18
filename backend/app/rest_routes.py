@@ -9,10 +9,9 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db, Transaction, Investigation, AsyncSessionLocal, AuditLog
@@ -56,7 +55,11 @@ class MCPRequest(BaseModel):
 
 @router.get("/health")
 async def health():
-    return {"status": "ok", "service": "payguard-api", "timestamp": datetime.utcnow().isoformat()}
+    return {
+        "status": "ok",
+        "service": "payguard-api",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
 
 
 def _benchmark_results_dir() -> Path:
@@ -148,7 +151,9 @@ async def list_transactions(
 
 @router.get("/transactions/{transaction_id}")
 async def get_transaction(transaction_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Transaction).where(Transaction.transaction_id == transaction_id))
+    result = await db.execute(
+        select(Transaction).where(Transaction.transaction_id == transaction_id)
+    )
     t = result.scalar_one_or_none()
     if not t:
         raise HTTPException(status_code=404, detail="Transaction not found")
@@ -211,24 +216,36 @@ async def _run_investigation_task(investigation_id: str, transaction_id: str):
         )
 
         async with AsyncSessionLocal() as db:
-            res = await db.execute(select(Investigation).where(Investigation.id == investigation_id))
+            res = await db.execute(
+                select(Investigation).where(Investigation.id == investigation_id)
+            )
             inv = res.scalar_one_or_none()
             trace = investigation_events.get(investigation_id, [])
-            status = "completed" if not result.get("requires_approval") else "pending_approval"
+            status = (
+                "completed"
+                if not result.get("requires_approval")
+                else "pending_approval"
+            )
             if inv:
                 inv.transaction_id = transaction_id
                 inv.status = status
                 inv.verdict = result.get("verdict", inv.verdict or "inconclusive")
-                inv.confidence = float(result.get("confidence") or inv.confidence or 0.0)
-                inv.recommendation = result.get("recommendation", inv.recommendation or "monitor")
+                if result.get("confidence") is not None:
+                    inv.confidence = float(result["confidence"])
+                inv.recommendation = result.get(
+                    "recommendation", inv.recommendation or "monitor"
+                )
                 inv.evidence = result.get("evidence") or inv.evidence
                 inv.triage_result = result.get("triage") or inv.triage_result
                 inv.behavior_result = result.get("behavior") or inv.behavior_result
                 inv.synthesis_result = result.get("synthesis") or inv.synthesis_result
                 inv.agent_trace = trace
-                inv.cost_usd = float(result.get("cost_usd") or inv.cost_usd or 0.0)
-                inv.model_breakdown = result.get("model_breakdown") or inv.model_breakdown
-                inv.token_usage = result.get("token_usage") or inv.token_usage
+                if result.get("cost_usd") is not None:
+                    inv.cost_usd = float(result["cost_usd"])
+                if result.get("model_breakdown") is not None:
+                    inv.model_breakdown = result["model_breakdown"]
+                if result.get("token_usage") is not None:
+                    inv.token_usage = result["token_usage"]
                 inv.updated_at = datetime.utcnow()
             else:
                 inv = Investigation(
@@ -236,14 +253,22 @@ async def _run_investigation_task(investigation_id: str, transaction_id: str):
                     transaction_id=transaction_id,
                     status=status,
                     verdict=result.get("verdict", "inconclusive"),
-                    confidence=float(result.get("confidence") or 0.0),
+                    confidence=float(
+                        result["confidence"]
+                        if result.get("confidence") is not None
+                        else 0.0
+                    ),
                     recommendation=result.get("recommendation", "monitor"),
                     evidence=result.get("evidence"),
                     triage_result=result.get("triage"),
                     behavior_result=result.get("behavior"),
                     synthesis_result=result.get("synthesis"),
                     agent_trace=trace,
-                    cost_usd=float(result.get("cost_usd") or 0.0),
+                    cost_usd=float(
+                        result["cost_usd"]
+                        if result.get("cost_usd") is not None
+                        else 0.0
+                    ),
                     model_breakdown=result.get("model_breakdown"),
                     token_usage=result.get("token_usage"),
                     created_at=datetime.utcnow(),
@@ -262,6 +287,7 @@ async def _run_investigation_task(investigation_id: str, transaction_id: str):
 @router.get("/stream/{investigation_id}")
 async def stream_investigation(investigation_id: str):
     """SSE stream for investigation events."""
+
     async def event_generator():
         sent = 0
         while True:
@@ -271,7 +297,9 @@ async def stream_investigation(investigation_id: str):
                 yield {"event": event.get("type", "message"), "data": json.dumps(event)}
                 sent += 1
 
-            if investigation_complete.get(investigation_id, False) and sent >= len(events):
+            if investigation_complete.get(investigation_id, False) and sent >= len(
+                events
+            ):
                 yield {"event": "done", "data": json.dumps({"status": "complete"})}
                 break
 
@@ -304,7 +332,11 @@ async def approve_investigation(req: ApprovalRequest):
         reason="human_review",
     )
 
-    return {"investigation_id": req.investigation_id, "decision": req.decision, "status": "recorded"}
+    return {
+        "investigation_id": req.investigation_id,
+        "decision": req.decision,
+        "status": "recorded",
+    }
 
 
 @router.get("/investigations")
@@ -335,7 +367,9 @@ async def list_investigations(
 
 @router.get("/investigations/{investigation_id}")
 async def get_investigation(investigation_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Investigation).where(Investigation.id == investigation_id))
+    result = await db.execute(
+        select(Investigation).where(Investigation.id == investigation_id)
+    )
     inv = result.scalar_one_or_none()
     if not inv:
         raise HTTPException(status_code=404, detail="Investigation not found")
@@ -360,7 +394,9 @@ async def get_investigation(investigation_id: str, db: AsyncSession = Depends(ge
 
 
 @router.get("/investigations/{investigation_id}/audit")
-async def get_investigation_audit(investigation_id: str, db: AsyncSession = Depends(get_db)):
+async def get_investigation_audit(
+    investigation_id: str, db: AsyncSession = Depends(get_db)
+):
     result = await db.execute(
         select(AuditLog)
         .where(AuditLog.investigation_id == investigation_id)
@@ -385,6 +421,7 @@ async def get_investigation_audit(investigation_id: str, db: AsyncSession = Depe
 
 
 # MCP Tool Server REST endpoints
+
 
 @router.post("/mcp/transaction_lookup")
 async def mcp_transaction_lookup(req: MCPRequest):

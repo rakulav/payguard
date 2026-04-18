@@ -49,7 +49,9 @@ def ensure_index(client: OpenSearch | None = None):
         )
 
 
-async def search_bm25(query_text: str, k: int = 10, filters: dict | None = None) -> list[dict]:
+async def search_bm25(
+    query_text: str, k: int = 10, filters: dict | None = None
+) -> list[dict]:
     """BM25 keyword search over transaction text representations."""
     client = get_os_client()
 
@@ -139,7 +141,7 @@ def bulk_index(documents: list[dict], client: OpenSearch | None = None):
 
     batch_size = 2000
     for i in range(0, len(actions), batch_size):
-        batch = actions[i:i + batch_size]
+        batch = actions[i : i + batch_size]
         client.bulk(body=batch, refresh=False)
 
     client.indices.refresh(INDEX_NAME)

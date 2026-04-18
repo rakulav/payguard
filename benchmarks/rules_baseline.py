@@ -23,11 +23,18 @@ def evaluate_rules(transaction: dict) -> dict:
 
     amount = float(transaction.get("amount", 0))
     txn_type = transaction.get("type", "")
-    old_bal = float(transaction.get("old_balance_org", 0) or transaction.get("oldbalanceOrg", 0) or 0)
-    new_bal = float(transaction.get("new_balance_orig", 0) or transaction.get("newbalanceOrig", 0) or 0)
+    old_bal = float(
+        transaction.get("old_balance_org", 0)
+        or transaction.get("oldbalanceOrg", 0)
+        or 0
+    )
+    new_bal = float(
+        transaction.get("new_balance_orig", 0)
+        or transaction.get("newbalanceOrig", 0)
+        or 0
+    )
     country = transaction.get("country_code", "US")
     category = transaction.get("merchant_category", "")
-    device = transaction.get("device_fingerprint", "")
 
     # --- STRONG RULES (high-confidence detections) ---
 

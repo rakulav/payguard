@@ -2,8 +2,17 @@
 
 from datetime import datetime
 from sqlalchemy import (
-    Column, String, Float, Integer, Boolean, DateTime, Text, JSON,
-    create_engine, text,
+    Column,
+    String,
+    Float,
+    Integer,
+    Boolean,
+    DateTime,
+    Text,
+    JSON,
+    create_engine,
+    text,
+    select,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -14,8 +23,12 @@ from app.config import get_settings
 
 settings = get_settings()
 
-async_engine = create_async_engine(settings.database_url, echo=False, pool_size=20, max_overflow=10)
-AsyncSessionLocal = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+async_engine = create_async_engine(
+    settings.database_url, echo=False, pool_size=20, max_overflow=10
+)
+AsyncSessionLocal = async_sessionmaker(
+    async_engine, class_=AsyncSession, expire_on_commit=False
+)
 
 sync_engine = create_engine(settings.database_url_sync, echo=False, pool_size=5)
 SyncSession = sessionmaker(sync_engine)
@@ -53,7 +66,9 @@ class Investigation(Base):
 
     id = Column(String, primary_key=True)
     transaction_id = Column(String, index=True)
-    status = Column(String, default="pending")  # pending, in_progress, completed, approved, rejected
+    status = Column(
+        String, default="pending"
+    )  # pending, in_progress, completed, approved, rejected
     verdict = Column(String)  # fraud, legitimate, inconclusive
     confidence = Column(Float)
     recommendation = Column(String)  # freeze, escalate, monitor, clear
@@ -69,6 +84,29 @@ class Investigation(Base):
     cost_usd = Column(Float, default=0.0)
     model_breakdown = Column(JSONB)
     token_usage = Column(JSONB)
+
+
+async def update_investigation_cost_fields(
+    investigation_id: str,
+    *,
+    cost_usd: float,
+    model_breakdown: list | None,
+    token_usage: dict | None,
+) -> None:
+    """Persist LLM usage totals on the investigation row when it already exists (e.g. before approval wait ends)."""
+    async with AsyncSessionLocal() as session:
+        res = await session.execute(
+            select(Investigation).where(Investigation.id == investigation_id)
+        )
+        inv = res.scalar_one_or_none()
+        if inv:
+            inv.cost_usd = cost_usd
+            if model_breakdown is not None:
+                inv.model_breakdown = model_breakdown
+            if token_usage is not None:
+                inv.token_usage = token_usage
+            inv.updated_at = datetime.utcnow()
+            await session.commit()
 
 
 class AuditLog(Base):

@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from app.db import AsyncSessionLocal, AuditLog
 
@@ -12,10 +12,11 @@ async def append_audit(
     actor: str,
     action: str,
     *,
-    prior_state: Optional[dict[str, Any]] = None,
-    new_state: Optional[dict[str, Any]] = None,
-    reason: Optional[str] = None,
+    prior_state: dict[str, Any] | None = None,
+    new_state: dict[str, Any] | None = None,
+    reason: str | None = None,
 ) -> None:
+    """Persist one audit row for an investigation (append-only)."""
     row = AuditLog(
         id=f"aud_{uuid.uuid4().hex[:16]}",
         investigation_id=investigation_id,

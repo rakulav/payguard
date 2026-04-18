@@ -1,4 +1,4 @@
-"""FastAPI app: mounts REST + GraphQL + SSE."""
+"""PayGuard API entrypoint: REST routes, GraphQL, and startup database migration."""
 
 from contextlib import asynccontextmanager
 

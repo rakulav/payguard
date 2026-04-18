@@ -5,8 +5,13 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 
 os.environ["MOCK_LLM"] = "1"
-os.environ["DATABASE_URL"] = os.environ.get("DATABASE_URL", "postgresql+asyncpg://payguard:payguard_secret@postgres:5432/payguard")
-os.environ["DATABASE_URL_SYNC"] = os.environ.get("DATABASE_URL_SYNC", "postgresql://payguard:payguard_secret@postgres:5432/payguard")
+os.environ["DATABASE_URL"] = os.environ.get(
+    "DATABASE_URL",
+    "postgresql+asyncpg://payguard:payguard_secret@postgres:5432/payguard",
+)
+os.environ["DATABASE_URL_SYNC"] = os.environ.get(
+    "DATABASE_URL_SYNC", "postgresql://payguard:payguard_secret@postgres:5432/payguard"
+)
 
 from app.main import app
 

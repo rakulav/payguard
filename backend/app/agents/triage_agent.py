@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from app.llm import call_llm, get_mock_trace
+from app.llm import call_llm
 from app.audit_service import append_audit
 from app.cost_tracker import usage_record
 from app.mcp_servers.transaction_lookup import transaction_lookup
@@ -25,12 +25,27 @@ async def run_triage(
         if emit_event:
             emit_event({"agent": "triage", **event})
 
-    emit({"type": "thought", "content": f"Starting triage analysis for {transaction_id}..."})
+    emit(
+        {
+            "type": "thought",
+            "content": f"Starting triage analysis for {transaction_id}...",
+        }
+    )
 
     # Tool call 1: transaction_lookup
-    emit({"type": "tool_call", "content": f"Calling transaction_lookup({transaction_id})"})
+    emit(
+        {
+            "type": "tool_call",
+            "content": f"Calling transaction_lookup({transaction_id})",
+        }
+    )
     txn_result = await transaction_lookup(transaction_id)
-    emit({"type": "tool_result", "content": f"Transaction found: {txn_result.get('found', False)}"})
+    emit(
+        {
+            "type": "tool_result",
+            "content": f"Transaction found: {txn_result.get('found', False)}",
+        }
+    )
 
     if not txn_result.get("found"):
         result = {
@@ -46,7 +61,12 @@ async def run_triage(
     # Tool call 2: rules_engine
     emit({"type": "tool_call", "content": f"Calling rules_engine({transaction_id})"})
     rules_result = await rules_engine(transaction_id)
-    emit({"type": "tool_result", "content": f"Rules fired: {rules_result['rules_fired_count']}/{rules_result['rules_evaluated']}, max severity: {rules_result['max_severity']}"})
+    emit(
+        {
+            "type": "tool_result",
+            "content": f"Rules fired: {rules_result['rules_fired_count']}/{rules_result['rules_evaluated']}, max severity: {rules_result['max_severity']}",
+        }
+    )
 
     txn = txn_result["transaction"]
 
@@ -62,7 +82,9 @@ async def run_triage(
         f"Provide your triage verdict."
     )
 
-    llm_result = call_llm(SYSTEM_PROMPT, user_msg, agent_type="triage", agent_role="triage")
+    llm_result = call_llm(
+        SYSTEM_PROMPT, user_msg, agent_type="triage", agent_role="triage"
+    )
 
     for thought in llm_result.get("thoughts", []):
         emit({"type": "thought", "content": thought})
@@ -125,14 +147,22 @@ async def run_triage(
             investigation_id,
             "triage_agent",
             "agent_verdict",
-            new_state={"verdict": result["verdict"], "confidence": result["confidence"]},
+            new_state={
+                "verdict": result["verdict"],
+                "confidence": result["confidence"],
+            },
             reason=result.get("rules_summary", "")[:400],
         )
 
-    emit({"type": "verdict", "content": {
-        "verdict": result["verdict"],
-        "confidence": result["confidence"],
-        "reasoning": result["reasoning"],
-    }})
+    emit(
+        {
+            "type": "verdict",
+            "content": {
+                "verdict": result["verdict"],
+                "confidence": result["confidence"],
+                "reasoning": result["reasoning"],
+            },
+        }
+    )
 
     return result

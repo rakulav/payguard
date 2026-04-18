@@ -1,4 +1,4 @@
-.PHONY: demo seed bench test down clean
+.PHONY: demo seed bench test down clean lint format
 
 demo:
 	@echo "╔══════════════════════════════════════════════╗"
@@ -98,6 +98,15 @@ bench:
 
 test:
 	docker compose run --rm worker python -m pytest tests/ -v
+
+lint:
+	cd backend && ruff check . && black --check .
+	cd benchmarks && ruff check . && black --check .
+
+format:
+	cd backend && black . && ruff check --fix .
+	cd benchmarks && black . && ruff check --fix .
+	cd frontend && npx --yes prettier --write "**/*.{ts,tsx,js,jsx,json,css}" --log-level warn
 
 down:
 	docker compose down

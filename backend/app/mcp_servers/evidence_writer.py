@@ -19,7 +19,11 @@ async def evidence_writer(
     Triggers approval gate if recommendation is 'freeze' or 'escalate'.
     """
     requires_approval = recommendation in ("freeze", "escalate")
-    conf = confidence if confidence is not None else float(evidence.get("triage_confidence") or 0.0)
+    conf = (
+        confidence
+        if confidence is not None
+        else float(evidence.get("triage_confidence") or 0.0)
+    )
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(
@@ -53,7 +57,11 @@ async def evidence_writer(
         investigation_id,
         "evidence_writer",
         "evidence_persisted",
-        new_state={"verdict": verdict, "recommendation": recommendation, "confidence": conf},
+        new_state={
+            "verdict": verdict,
+            "recommendation": recommendation,
+            "confidence": conf,
+        },
     )
 
     return {

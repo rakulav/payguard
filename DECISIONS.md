@@ -56,3 +56,36 @@
 ## Verification note
 
 - Full 50-run benchmark and live Anthropic calls were **not** executed in this environment (no guaranteed Docker/API keys here). Re-run locally: `docker compose build api && docker compose up -d api` then `docker compose run --rm worker python -m benchmarks.run_benchmark`.
+
+## Cleanup pass, 2026-04-18
+
+### Files touched
+
+- `README.md` (portfolio rewrite, badges, benchmark table from `summary.json`, trade-offs, structure).
+- `.gitignore`, `.env.example`, `LICENSE`, `Makefile` (`lint` / `format` targets).
+- `docker-compose.yml` (pin Qdrant `v1.12.4`), Dockerfiles (pin Python `3.11.10-slim-bookworm`, Node `20.18.1-alpine3.20`).
+- `backend/` — `ruff --fix` + `black` on all Python; removed unused imports; minor docstrings (`main.py`, `config.py`, `audit_service.append_audit`).
+- `benchmarks/` — `ruff`/`black`; removed unused `device` variable in `rules_baseline.py`.
+- `frontend/` — Prettier on TS/TSX/JSON/CSS; removed `console.error` noise; empty `catch` clarified.
+- `streamlit_app/app.py` — Prettier-only formatting from repo-wide pass.
+- `backend/app/rest_routes.py` — fixed `0.0` / `[]` falsy merges for `confidence`, `cost_usd`, `model_breakdown`, `token_usage` when updating investigations.
+- `backend/app/db.py` + `orchestrator.py` — `update_investigation_cost_fields()` so cost and model breakdown persist **before** the approval wait (row previously only reflected evidence_writer until REST task finished).
+
+### Dead code / noise removed
+
+- **6** tracked `__pycache__` / `.pyc` binaries removed from git.
+- **~15** unused import / F841 fixes from Ruff (backend + benchmarks).
+- **3** `console.error` / `console.error`-style client logs removed or neutralized.
+
+### Skipped (would change behavior or scope)
+
+- **CLI `print` in `seed.py`, `run_benchmark.py`, `fetch_or_generate.py`:** kept as user-facing progress output, not debug noise.
+- **`make format` without Prettier in backend:** Python only in that target; Prettier runs for `frontend/`.
+
+### Markdownlint
+
+- Added `markdownlint-disable-file MD013` and fenced-code languages (`text`) where needed; remaining rules pass for `README.md` in this environment.
+
+### Secret scan
+
+- Grep for `sk-ant-`, `AKIA`, `ghp_` in tracked sources: only placeholders in `.env.example` / README; `.env` remains gitignored.

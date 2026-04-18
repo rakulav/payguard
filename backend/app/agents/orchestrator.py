@@ -9,6 +9,7 @@ from langgraph.graph import StateGraph, END
 from app.agents.triage_agent import run_triage
 from app.agents.behavior_agent import run_behavior
 from app.agents.synthesis_agent import run_synthesis
+from app.db import update_investigation_cost_fields
 
 
 class InvestigationState(TypedDict, total=False):
@@ -78,7 +79,11 @@ def build_investigation_graph():
     graph.add_node("synthesis", synthesis_node)
 
     graph.set_entry_point("triage")
-    graph.add_conditional_edges("triage", should_run_behavior, {"behavior": "behavior", "synthesis": "synthesis"})
+    graph.add_conditional_edges(
+        "triage",
+        should_run_behavior,
+        {"behavior": "behavior", "synthesis": "synthesis"},
+    )
     graph.add_edge("behavior", "synthesis")
     graph.add_edge("synthesis", END)
 
@@ -98,8 +103,20 @@ async def run_investigation(
     start = time.time()
 
     if emit_event:
-        emit_event({"agent": "orchestrator", "type": "thought", "content": f"Starting investigation {investigation_id} for transaction {transaction_id}"})
-        emit_event({"agent": "orchestrator", "type": "thought", "content": "Pipeline: Triage → [Behavior if needed] → Synthesis"})
+        emit_event(
+            {
+                "agent": "orchestrator",
+                "type": "thought",
+                "content": f"Starting investigation {investigation_id} for transaction {transaction_id}",
+            }
+        )
+        emit_event(
+            {
+                "agent": "orchestrator",
+                "type": "thought",
+                "content": "Pipeline: Triage → [Behavior if needed] → Synthesis",
+            }
+        )
 
     initial_state: InvestigationState = {
         "transaction_id": transaction_id,
@@ -129,10 +146,23 @@ async def run_investigation(
     final["token_usage"] = {"input_tokens": tin, "output_tokens": tout}
     final["cost_usd"] = tcost
 
+    await update_investigation_cost_fields(
+        investigation_id,
+        cost_usd=tcost,
+        model_breakdown=usages,
+        token_usage={"input_tokens": tin, "output_tokens": tout},
+    )
+
     # Wait for approval if needed
     if final.get("requires_approval") and get_approval:
         if emit_event:
-            emit_event({"agent": "orchestrator", "type": "thought", "content": "Waiting for human approval..."})
+            emit_event(
+                {
+                    "agent": "orchestrator",
+                    "type": "thought",
+                    "content": "Waiting for human approval...",
+                }
+            )
 
         max_wait = 300  # 5 minutes max
         waited = 0
@@ -141,7 +171,13 @@ async def run_investigation(
             if decision:
                 final["approval_decision"] = decision
                 if emit_event:
-                    emit_event({"agent": "orchestrator", "type": "thought", "content": f"Approval decision received: {decision}"})
+                    emit_event(
+                        {
+                            "agent": "orchestrator",
+                            "type": "thought",
+                            "content": f"Approval decision received: {decision}",
+                        }
+                    )
                 break
             await asyncio.sleep(1)
             waited += 1
@@ -149,12 +185,24 @@ async def run_investigation(
         if waited >= max_wait:
             final["approval_decision"] = "timeout"
             if emit_event:
-                emit_event({"agent": "orchestrator", "type": "thought", "content": "Approval timeout — auto-escalating"})
+                emit_event(
+                    {
+                        "agent": "orchestrator",
+                        "type": "thought",
+                        "content": "Approval timeout — auto-escalating",
+                    }
+                )
 
     total_ms = int((time.time() - start) * 1000)
     final["total_latency_ms"] = total_ms
 
     if emit_event:
-        emit_event({"agent": "orchestrator", "type": "thought", "content": f"Investigation complete in {total_ms}ms"})
+        emit_event(
+            {
+                "agent": "orchestrator",
+                "type": "thought",
+                "content": f"Investigation complete in {total_ms}ms",
+            }
+        )
 
     return final

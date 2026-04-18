@@ -25,7 +25,11 @@ if Path("/app/benchmarks/results").exists():
     RESULTS_DIR = Path("/app/benchmarks/results")
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-DATA_DIR = Path("/app/data") if Path("/app/data").exists() else Path(__file__).parent.parent / "data"
+DATA_DIR = (
+    Path("/app/data")
+    if Path("/app/data").exists()
+    else Path(__file__).parent.parent / "data"
+)
 SCENARIOS_PATH = DATA_DIR / "fraud_scenarios.json"
 
 
@@ -42,6 +46,7 @@ def load_transaction(txn_id: str) -> dict | None:
         return None
     try:
         import pandas as pd
+
         df = pd.read_parquet(parquet_path)
         match = df[df["transaction_id"] == txn_id]
         if len(match) == 0:
@@ -119,18 +124,20 @@ def run_rules_baseline(scenarios: list[dict]) -> list[dict]:
     for scn in scenarios:
         txn = get_transaction_for_scenario(scn)
         result = evaluate_rules(txn)
-        results.append({
-            "scenario_id": scn["id"],
-            "transaction_id": scn["transaction_id"],
-            "ground_truth": scn["ground_truth"],
-            "category": scn.get("category", "unknown"),
-            "expected_pattern": scn.get("expected_pattern", "unknown"),
-            "rules_verdict": result["verdict"],
-            "rules_confidence": result["confidence"],
-            "rules_fired": result["rules_fired"],
-            "rules_signals": result.get("signals", []),
-            "rules_latency_ms": result["latency_ms"],
-        })
+        results.append(
+            {
+                "scenario_id": scn["id"],
+                "transaction_id": scn["transaction_id"],
+                "ground_truth": scn["ground_truth"],
+                "category": scn.get("category", "unknown"),
+                "expected_pattern": scn.get("expected_pattern", "unknown"),
+                "rules_verdict": result["verdict"],
+                "rules_confidence": result["confidence"],
+                "rules_fired": result["rules_fired"],
+                "rules_signals": result.get("signals", []),
+                "rules_latency_ms": result["latency_ms"],
+            }
+        )
     return results
 
 
@@ -145,7 +152,9 @@ def map_investigation_verdict(raw: str | None) -> str:
     return "suspicious"
 
 
-async def _consume_sse_and_approve(client: httpx.AsyncClient, base: str, inv_id: str) -> None:
+async def _consume_sse_and_approve(
+    client: httpx.AsyncClient, base: str, inv_id: str
+) -> None:
     """Read SSE until the server closes the stream; POST /api/approve when needed.
 
     sse-starlette framing varies by client buffering; matching the JSON payload
@@ -153,7 +162,9 @@ async def _consume_sse_and_approve(client: httpx.AsyncClient, base: str, inv_id:
     """
     url = f"{base}/api/stream/{inv_id}"
     approved = False
-    async with client.stream("GET", url, timeout=httpx.Timeout(720.0, connect=60.0)) as resp:
+    async with client.stream(
+        "GET", url, timeout=httpx.Timeout(720.0, connect=60.0)
+    ) as resp:
         resp.raise_for_status()
         async for chunk in resp.aiter_text():
             if not approved and "approval_required" in chunk:
@@ -223,16 +234,18 @@ async def run_agent_pipeline(scenarios: list[dict]) -> list[dict]:
             verdict, conf, ms = await run_one_api_investigation(
                 client, base, scn["transaction_id"]
             )
-            results.append({
-                "scenario_id": scn["id"],
-                "transaction_id": scn["transaction_id"],
-                "ground_truth": scn["ground_truth"],
-                "category": scn.get("category", "unknown"),
-                "agent_verdict": verdict,
-                "agent_confidence": conf,
-                "agent_latency_ms": ms,
-                "pattern_detected": scn.get("expected_pattern", "unknown"),
-            })
+            results.append(
+                {
+                    "scenario_id": scn["id"],
+                    "transaction_id": scn["transaction_id"],
+                    "ground_truth": scn["ground_truth"],
+                    "category": scn.get("category", "unknown"),
+                    "agent_verdict": verdict,
+                    "agent_confidence": conf,
+                    "agent_latency_ms": ms,
+                    "pattern_detected": scn.get("expected_pattern", "unknown"),
+                }
+            )
             print(f"  [{i + 1}/{len(scenarios)}] {scn['id']} → {verdict} ({ms}ms)")
 
     return results
@@ -272,8 +285,12 @@ def compute_metrics(results: list[dict], verdict_key: str) -> dict:
 
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
-    ambiguous_accuracy = correct_ambiguous / total_ambiguous if total_ambiguous > 0 else 0
+    f1 = (
+        2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+    )
+    ambiguous_accuracy = (
+        correct_ambiguous / total_ambiguous if total_ambiguous > 0 else 0
+    )
 
     return {
         "precision": round(precision, 4),
@@ -287,11 +304,16 @@ def compute_metrics(results: list[dict], verdict_key: str) -> dict:
     }
 
 
-def count_patterns_detected(results: list[dict], verdict_key: str, scenarios: list[dict]) -> int:
+def count_patterns_detected(
+    results: list[dict], verdict_key: str, scenarios: list[dict]
+) -> int:
     adversarial_ids = {s["id"] for s in scenarios if s.get("category") == "adversarial"}
     caught = 0
     for r in results:
-        if r["scenario_id"] in adversarial_ids and r[verdict_key] in ("fraud", "suspicious"):
+        if r["scenario_id"] in adversarial_ids and r[verdict_key] in (
+            "fraud",
+            "suspicious",
+        ):
             caught += 1
     return caught
 
@@ -327,19 +349,39 @@ def main():
     csv_path = RESULTS_DIR / "comparison.csv"
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow([
-            "scenario_id", "transaction_id", "ground_truth", "category",
-            "rules_verdict", "rules_confidence", "rules_latency_ms", "rules_fired",
-            "agent_verdict", "agent_confidence", "agent_latency_ms", "pattern_detected",
-        ])
+        writer.writerow(
+            [
+                "scenario_id",
+                "transaction_id",
+                "ground_truth",
+                "category",
+                "rules_verdict",
+                "rules_confidence",
+                "rules_latency_ms",
+                "rules_fired",
+                "agent_verdict",
+                "agent_confidence",
+                "agent_latency_ms",
+                "pattern_detected",
+            ]
+        )
         for rr, ar in zip(rules_results, agent_results):
-            writer.writerow([
-                rr["scenario_id"], rr["transaction_id"], rr["ground_truth"], rr["category"],
-                rr["rules_verdict"], rr["rules_confidence"], rr["rules_latency_ms"],
-                "|".join(rr["rules_fired"]) if rr["rules_fired"] else "",
-                ar["agent_verdict"], ar["agent_confidence"], ar["agent_latency_ms"],
-                ar["pattern_detected"],
-            ])
+            writer.writerow(
+                [
+                    rr["scenario_id"],
+                    rr["transaction_id"],
+                    rr["ground_truth"],
+                    rr["category"],
+                    rr["rules_verdict"],
+                    rr["rules_confidence"],
+                    rr["rules_latency_ms"],
+                    "|".join(rr["rules_fired"]) if rr["rules_fired"] else "",
+                    ar["agent_verdict"],
+                    ar["agent_confidence"],
+                    ar["agent_latency_ms"],
+                    ar["pattern_detected"],
+                ]
+            )
     print(f"\n  Results written to {csv_path}")
 
     rules_metrics = compute_metrics(rules_results, "rules_verdict")
@@ -354,7 +396,9 @@ def main():
     median_rules = rules_latencies[len(rules_latencies) // 2]
     median_agent = agent_latencies[len(agent_latencies) // 2]
 
-    f1_lift = ((agent_metrics["f1"] - rules_metrics["f1"]) / max(rules_metrics["f1"], 0.01)) * 100
+    f1_lift = (
+        (agent_metrics["f1"] - rules_metrics["f1"]) / max(rules_metrics["f1"], 0.01)
+    ) * 100
 
     print("\n" + "=" * 60)
     print("BENCHMARK RESULTS")
@@ -385,7 +429,10 @@ def main():
     print(f"{'='*60}")
 
     print("\nVerdict distribution:")
-    for system, res, key in [("Rules", rules_results, "rules_verdict"), ("Agent", agent_results, "agent_verdict")]:
+    for system, res, key in [
+        ("Rules", rules_results, "rules_verdict"),
+        ("Agent", agent_results, "agent_verdict"),
+    ]:
         dist: dict[str, int] = {}
         for r in res:
             v = r[key]
@@ -399,21 +446,28 @@ def main():
 
     summary_path = RESULTS_DIR / "summary.json"
     with open(summary_path, "w", encoding="utf-8") as f:
-        json.dump({
-            "benchmark_run_at": benchmark_run_at,
-            "scenarios_run": len(scenarios),
-            "scenario_mix": by_cat,
-            "rules": rules_metrics,
-            "agent": agent_metrics,
-            "rules_adversarial_caught": rules_adv,
-            "agent_adversarial_caught": agent_adv,
-            "adversarial_improvement_pct": adv_improvement_pct,
-            "f1_lift_pct": round(f1_lift, 1),
-            "median_rules_latency_ms": median_rules,
-            "median_agent_latency_ms": median_agent,
-            "benchmark_api_url": os.environ.get("BENCHMARK_API_URL", "http://localhost:8000").rstrip("/"),
-            "mock_llm_respected": os.environ.get("MOCK_LLM", "").lower() in ("1", "true", "yes"),
-        }, f, indent=2)
+        json.dump(
+            {
+                "benchmark_run_at": benchmark_run_at,
+                "scenarios_run": len(scenarios),
+                "scenario_mix": by_cat,
+                "rules": rules_metrics,
+                "agent": agent_metrics,
+                "rules_adversarial_caught": rules_adv,
+                "agent_adversarial_caught": agent_adv,
+                "adversarial_improvement_pct": adv_improvement_pct,
+                "f1_lift_pct": round(f1_lift, 1),
+                "median_rules_latency_ms": median_rules,
+                "median_agent_latency_ms": median_agent,
+                "benchmark_api_url": os.environ.get(
+                    "BENCHMARK_API_URL", "http://localhost:8000"
+                ).rstrip("/"),
+                "mock_llm_respected": os.environ.get("MOCK_LLM", "").lower()
+                in ("1", "true", "yes"),
+            },
+            f,
+            indent=2,
+        )
     print(f"\nSummary written to {summary_path} (run at {benchmark_run_at})")
 
 

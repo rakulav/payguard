@@ -5,7 +5,9 @@ from app.retrieval import pgvector_store, qdrant_store, opensearch_store
 RRF_K = 60
 
 
-def reciprocal_rank_fusion(result_lists: list[list[dict]], k: int = RRF_K) -> list[dict]:
+def reciprocal_rank_fusion(
+    result_lists: list[list[dict]], k: int = RRF_K
+) -> list[dict]:
     """Fuse multiple ranked result lists using RRF with k=60."""
     scores: dict[str, float] = {}
     doc_map: dict[str, dict] = {}
@@ -43,21 +45,29 @@ async def hybrid_search(
     opensearch_results = []
 
     try:
-        pgvector_results = await pgvector_store.search_similar(embedding, k=k * 2, filters=filters)
-    except Exception as e:
+        pgvector_results = await pgvector_store.search_similar(
+            embedding, k=k * 2, filters=filters
+        )
+    except Exception:
         pgvector_results = []
 
     try:
-        qdrant_results = await qdrant_store.search_similar(embedding, k=k * 2, filters=filters)
-    except Exception as e:
+        qdrant_results = await qdrant_store.search_similar(
+            embedding, k=k * 2, filters=filters
+        )
+    except Exception:
         qdrant_results = []
 
     try:
-        opensearch_results = await opensearch_store.search_bm25(query_text, k=k * 2, filters=filters)
-    except Exception as e:
+        opensearch_results = await opensearch_store.search_bm25(
+            query_text, k=k * 2, filters=filters
+        )
+    except Exception:
         opensearch_results = []
 
-    fused = reciprocal_rank_fusion([pgvector_results, qdrant_results, opensearch_results])
+    fused = reciprocal_rank_fusion(
+        [pgvector_results, qdrant_results, opensearch_results]
+    )
 
     return {
         "results": fused[:k],

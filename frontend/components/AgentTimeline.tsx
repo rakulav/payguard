@@ -1,47 +1,48 @@
-'use client'
+"use client";
 
 interface AgentEvent {
-  agent: string
-  type: string
-  content: any
+  agent: string;
+  type: string;
+  content: any;
 }
 
 const agentColors: Record<string, string> = {
-  orchestrator: 'text-gray-400 border-gray-700',
-  triage: 'text-amber-400 border-amber-800',
-  behavior: 'text-purple-400 border-purple-800',
-  synthesis: 'text-blue-400 border-blue-800',
-  system: 'text-green-400 border-green-800',
-}
+  orchestrator: "text-gray-400 border-gray-700",
+  triage: "text-amber-400 border-amber-800",
+  behavior: "text-purple-400 border-purple-800",
+  synthesis: "text-blue-400 border-blue-800",
+  system: "text-green-400 border-green-800",
+};
 
 const agentLabels: Record<string, string> = {
-  orchestrator: 'Orchestrator',
-  triage: 'Triage Agent',
-  behavior: 'Behavior Agent',
-  synthesis: 'Synthesis Agent',
-  system: 'System',
-}
+  orchestrator: "Orchestrator",
+  triage: "Triage Agent",
+  behavior: "Behavior Agent",
+  synthesis: "Synthesis Agent",
+  system: "System",
+};
 
 const typeIcons: Record<string, string> = {
-  thought: '💭',
-  tool_call: '🔧',
-  tool_result: '📊',
-  verdict: '⚖️',
-  approval_required: '🔒',
-  error: '❌',
-}
+  thought: "💭",
+  tool_call: "🔧",
+  tool_result: "📊",
+  verdict: "⚖️",
+  approval_required: "🔒",
+  error: "❌",
+};
 
 export default function AgentTimeline({ events }: { events: AgentEvent[] }) {
   return (
     <div className="space-y-2">
       {events.map((event, i) => {
-        const colorClass = agentColors[event.agent] || 'text-gray-400 border-gray-700'
-        const label = agentLabels[event.agent] || event.agent
-        const icon = typeIcons[event.type] || '•'
+        const colorClass =
+          agentColors[event.agent] || "text-gray-400 border-gray-700";
+        const label = agentLabels[event.agent] || event.agent;
+        const icon = typeIcons[event.type] || "•";
 
-        let content = event.content
-        if (typeof content === 'object') {
-          content = JSON.stringify(content, null, 2)
+        let content = event.content;
+        if (typeof content === "object") {
+          content = JSON.stringify(content, null, 2);
         }
 
         return (
@@ -51,13 +52,15 @@ export default function AgentTimeline({ events }: { events: AgentEvent[] }) {
               <span className="font-medium">{label}</span>
               <span className="text-gray-600">{event.type}</span>
             </div>
-            {event.type === 'verdict' ? (
-              <pre className="text-xs bg-[#0d0d0d] rounded p-2 overflow-x-auto whitespace-pre-wrap">{content}</pre>
+            {event.type === "verdict" ? (
+              <pre className="text-xs bg-[#0d0d0d] rounded p-2 overflow-x-auto whitespace-pre-wrap">
+                {content}
+              </pre>
             ) : (
               <p className="text-sm text-gray-300">{content}</p>
             )}
           </div>
-        )
+        );
       })}
       {events.length === 0 && (
         <div className="text-center text-gray-600 py-8">
@@ -66,5 +69,5 @@ export default function AgentTimeline({ events }: { events: AgentEvent[] }) {
         </div>
       )}
     </div>
-  )
+  );
 }

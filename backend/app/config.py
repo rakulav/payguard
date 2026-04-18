@@ -9,8 +9,12 @@ class Settings(BaseSettings):
     postgres_user: str = "payguard"
     postgres_password: str = "payguard_secret"
     postgres_db: str = "payguard"
-    database_url: str = "postgresql+asyncpg://payguard:payguard_secret@postgres:5432/payguard"
-    database_url_sync: str = "postgresql://payguard:payguard_secret@postgres:5432/payguard"
+    database_url: str = (
+        "postgresql+asyncpg://payguard:payguard_secret@postgres:5432/payguard"
+    )
+    database_url_sync: str = (
+        "postgresql://payguard:payguard_secret@postgres:5432/payguard"
+    )
 
     qdrant_host: str = "qdrant"
     qdrant_port: int = 6333
@@ -29,4 +33,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Return cached application settings loaded from environment and optional `.env`."""
     return Settings()

@@ -8,6 +8,7 @@ def _embed_text(text: str) -> list[float] | None:
     """Embed text using fastembed."""
     try:
         from app.embeddings import embed_single
+
         return embed_single(text)
     except Exception:
         return None

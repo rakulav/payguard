@@ -1,6 +1,5 @@
 """Seed script: loads dataset, computes embeddings, populates Postgres+pgvector, Qdrant, and OpenSearch."""
 
-import os
 import sys
 import time
 from pathlib import Path
@@ -17,7 +16,11 @@ from app.db import sync_engine, Base, Transaction, SyncSession
 
 settings = get_settings()
 
-DATA_DIR = Path("/app/data") if Path("/app/data").exists() else Path(__file__).parent.parent.parent / "data"
+DATA_DIR = (
+    Path("/app/data")
+    if Path("/app/data").exists()
+    else Path(__file__).parent.parent.parent / "data"
+)
 PARQUET_PATH = DATA_DIR / "transactions.parquet"
 BATCH_SIZE = 1000
 
@@ -40,9 +43,12 @@ def wait_for_services():
 
     # Qdrant
     from qdrant_client import QdrantClient
+
     for i in range(30):
         try:
-            client = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port, timeout=5)
+            client = QdrantClient(
+                host=settings.qdrant_host, port=settings.qdrant_port, timeout=5
+            )
             client.get_collections()
             print("  ✓ Qdrant ready")
             break
@@ -53,11 +59,16 @@ def wait_for_services():
 
     # OpenSearch
     from opensearchpy import OpenSearch
+
     for i in range(30):
         try:
             os_client = OpenSearch(
-                hosts=[{"host": settings.opensearch_host, "port": settings.opensearch_port}],
-                use_ssl=False, verify_certs=False, timeout=5,
+                hosts=[
+                    {"host": settings.opensearch_host, "port": settings.opensearch_port}
+                ],
+                use_ssl=False,
+                verify_certs=False,
+                timeout=5,
             )
             os_client.cluster.health()
             print("  ✓ OpenSearch ready")
@@ -72,12 +83,14 @@ def generate_data():
     """Run the dataset fetcher/generator."""
     sys.path.insert(0, str(DATA_DIR.parent))
     from data.fetch_or_generate import main as fetch_main
+
     fetch_main()
 
 
 def create_tables():
     """Create database tables with pgvector extension."""
     from sqlalchemy import text as sa_text
+
     with sync_engine.connect() as conn:
         conn.execute(sa_text("CREATE EXTENSION IF NOT EXISTS vector"))
         conn.commit()
@@ -103,6 +116,7 @@ def load_embeddings_model():
     """Load the fastembed model (ONNX-based, no PyTorch)."""
     print("  Loading embedding model (bge-small-en-v1.5 via fastembed)...")
     from app.embeddings import get_model
+
     model = get_model()
     print("  ✓ Model loaded")
     return model
@@ -129,8 +143,8 @@ def seed_postgres(df: pd.DataFrame, embeddings: np.ndarray):
         session.commit()
 
         for i in range(0, len(df), BATCH_SIZE):
-            batch = df.iloc[i:i + BATCH_SIZE]
-            batch_embeddings = embeddings[i:i + BATCH_SIZE]
+            batch = df.iloc[i : i + BATCH_SIZE]
+            batch_embeddings = embeddings[i : i + BATCH_SIZE]
 
             for j, (_, row) in enumerate(batch.iterrows()):
                 emb = batch_embeddings[j].tolist()
@@ -147,7 +161,11 @@ def seed_postgres(df: pd.DataFrame, embeddings: np.ndarray):
                     new_balance_dest=float(row.get("newbalanceDest", 0)),
                     is_fraud=bool(row.get("isFraud", False)),
                     is_flagged_fraud=bool(row.get("isFlaggedFraud", False)),
-                    timestamp=pd.Timestamp(row["timestamp"]).to_pydatetime() if "timestamp" in row else None,
+                    timestamp=(
+                        pd.Timestamp(row["timestamp"]).to_pydatetime()
+                        if "timestamp" in row
+                        else None
+                    ),
                     ip_address=row.get("ip_address", ""),
                     device_fingerprint=row.get("device_fingerprint", ""),
                     merchant_category=row.get("merchant_category", ""),
@@ -173,7 +191,9 @@ def seed_qdrant(df: pd.DataFrame, embeddings: np.ndarray):
     from qdrant_client.models import PointStruct
     from app.retrieval.qdrant_store import ensure_collection, COLLECTION_NAME
 
-    client = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port, timeout=60)
+    client = QdrantClient(
+        host=settings.qdrant_host, port=settings.qdrant_port, timeout=60
+    )
 
     # Delete and recreate
     try:
@@ -183,25 +203,27 @@ def seed_qdrant(df: pd.DataFrame, embeddings: np.ndarray):
     ensure_collection(client)
 
     for i in range(0, len(df), BATCH_SIZE):
-        batch = df.iloc[i:i + BATCH_SIZE]
-        batch_embeddings = embeddings[i:i + BATCH_SIZE]
+        batch = df.iloc[i : i + BATCH_SIZE]
+        batch_embeddings = embeddings[i : i + BATCH_SIZE]
 
         points = []
         for j, (_, row) in enumerate(batch.iterrows()):
-            points.append(PointStruct(
-                id=i + j,
-                vector=batch_embeddings[j].tolist(),
-                payload={
-                    "transaction_id": row["transaction_id"],
-                    "type": row.get("type", ""),
-                    "amount": float(row.get("amount", 0)),
-                    "name_orig": row.get("nameOrig", ""),
-                    "name_dest": row.get("nameDest", ""),
-                    "is_fraud": bool(row.get("isFraud", False)),
-                    "merchant_category": row.get("merchant_category", ""),
-                    "country_code": row.get("country_code", ""),
-                },
-            ))
+            points.append(
+                PointStruct(
+                    id=i + j,
+                    vector=batch_embeddings[j].tolist(),
+                    payload={
+                        "transaction_id": row["transaction_id"],
+                        "type": row.get("type", ""),
+                        "amount": float(row.get("amount", 0)),
+                        "name_orig": row.get("nameOrig", ""),
+                        "name_dest": row.get("nameDest", ""),
+                        "is_fraud": bool(row.get("isFraud", False)),
+                        "merchant_category": row.get("merchant_category", ""),
+                        "country_code": row.get("country_code", ""),
+                    },
+                )
+            )
 
         client.upsert(collection_name=COLLECTION_NAME, points=points)
         pct = min((i + BATCH_SIZE) / len(df) * 100, 100)
@@ -228,7 +250,7 @@ def seed_opensearch(df: pd.DataFrame):
     ensure_index(client)
 
     for i in range(0, len(df), BATCH_SIZE):
-        batch = df.iloc[i:i + BATCH_SIZE]
+        batch = df.iloc[i : i + BATCH_SIZE]
         actions = []
 
         for _, row in batch.iterrows():
@@ -250,7 +272,9 @@ def seed_opensearch(df: pd.DataFrame):
             if "timestamp" in row and pd.notna(row["timestamp"]):
                 doc["timestamp"] = pd.Timestamp(row["timestamp"]).isoformat()
 
-            actions.append({"index": {"_index": INDEX_NAME, "_id": row["transaction_id"]}})
+            actions.append(
+                {"index": {"_index": INDEX_NAME, "_id": row["transaction_id"]}}
+            )
             actions.append(doc)
 
         if actions:
@@ -292,18 +316,20 @@ def main():
     print("\n→ Computing embeddings...")
     load_embeddings_model()
     from app.embeddings import embed_texts
+
     texts = [transaction_to_text(row) for _, row in df.iterrows()]
     # Batch embed in chunks to avoid OOM
     all_embeddings = []
     batch_size = 2000
     for i in range(0, len(texts), batch_size):
-        batch = texts[i:i + batch_size]
+        batch = texts[i : i + batch_size]
         batch_emb = embed_texts(batch)
         all_embeddings.append(batch_emb)
         pct = min((i + batch_size) / len(texts) * 100, 100)
         print(f"\r  Embeddings: {pct:.0f}%", end="", flush=True)
     print()
     import numpy as np
+
     embeddings = np.concatenate(all_embeddings, axis=0)
     print(f"  ✓ Computed {len(embeddings)} embeddings ({embeddings.shape[1]}d)")
 

@@ -1,6 +1,5 @@
 """Claude wrapper with MOCK_LLM fallback, role-based models, and usage/cost metadata."""
 
-import json
 import os
 import time
 import random
@@ -28,8 +27,16 @@ MOCK_RESPONSES = {
             "Amount exceeds threshold and destination is a new merchant.",
         ],
         "tool_calls": [
-            {"tool": "transaction_lookup", "args": {"transaction_id": "TXN_48213"}, "result": "Found: TRANSFER $12,000.00 from C_1042 to M_8891"},
-            {"tool": "rules_engine", "args": {"transaction_id": "TXN_48213"}, "result": "Rules fired: balance_drain (severity=HIGH), large_transfer (severity=MEDIUM)"},
+            {
+                "tool": "transaction_lookup",
+                "args": {"transaction_id": "TXN_48213"},
+                "result": "Found: TRANSFER $12,000.00 from C_1042 to M_8891",
+            },
+            {
+                "tool": "rules_engine",
+                "args": {"transaction_id": "TXN_48213"},
+                "result": "Rules fired: balance_drain (severity=HIGH), large_transfer (severity=MEDIUM)",
+            },
         ],
         "verdict": "suspicious",
         "confidence": 0.82,
@@ -45,11 +52,25 @@ MOCK_RESPONSES = {
             "New device fingerprint and country (RU) not seen in customer history.",
         ],
         "tool_calls": [
-            {"tool": "customer_profile", "args": {"customer_id": "C_1042"}, "result": "Profile: 47 transactions, avg $127.50, top categories: grocery(60%), dining(25%). Countries: US(100%). Last activity: 2 days ago."},
-            {"tool": "similar_fraud_search", "args": {"k": 10}, "result": "Found 7 similar fraud cases. Top match: TXN_15330 (balance_drain, confirmed fraud, 94% similarity). Sources: pgvector(3), qdrant(2), opensearch(2)."},
+            {
+                "tool": "customer_profile",
+                "args": {"customer_id": "C_1042"},
+                "result": "Profile: 47 transactions, avg $127.50, top categories: grocery(60%), dining(25%). Countries: US(100%). Last activity: 2 days ago.",
+            },
+            {
+                "tool": "similar_fraud_search",
+                "args": {"k": 10},
+                "result": "Found 7 similar fraud cases. Top match: TXN_15330 (balance_drain, confirmed fraud, 94% similarity). Sources: pgvector(3), qdrant(2), opensearch(2).",
+            },
         ],
         "anomaly_score": 0.94,
-        "behavioral_flags": ["new_country_RU", "new_device", "category_drift_to_crypto", "amount_15x_average", "full_balance_drain"],
+        "behavioral_flags": [
+            "new_country_RU",
+            "new_device",
+            "category_drift_to_crypto",
+            "amount_15x_average",
+            "full_balance_drain",
+        ],
         "reasoning": "Customer C_1042 has no history of transfers, crypto merchants, or activity from Russia. This transaction deviates across 5 behavioral dimensions. 7 similar past cases were overwhelmingly fraudulent.",
     },
     "synthesis": {
@@ -60,7 +81,11 @@ MOCK_RESPONSES = {
             '```json\n{"verdict": "fraud", "confidence": 0.92, "recommendation": "escalate", "reasoning": "Convergent HIGH rules + behavioral anomalies."}\n```',
         ],
         "tool_calls": [
-            {"tool": "evidence_writer", "args": {"verdict": "fraud", "recommendation": "freeze"}, "result": "Evidence report written. Investigation marked for approval."},
+            {
+                "tool": "evidence_writer",
+                "args": {"verdict": "fraud", "recommendation": "freeze"},
+                "result": "Evidence report written. Investigation marked for approval.",
+            },
         ],
         "verdict": "fraud",
         "confidence": 0.96,
@@ -74,6 +99,7 @@ MOCK_RESPONSES = {
 def _get_client():
     try:
         import anthropic
+
         return anthropic.Anthropic(api_key=settings.anthropic_api_key)
     except Exception:
         return None
@@ -82,7 +108,10 @@ def _get_client():
 def _should_mock() -> bool:
     if settings.mock_llm or os.environ.get("MOCK_LLM", "0") == "1":
         return True
-    if not settings.anthropic_api_key or settings.anthropic_api_key == "sk-ant-your-key-here":
+    if (
+        not settings.anthropic_api_key
+        or settings.anthropic_api_key == "sk-ant-your-key-here"
+    ):
         return True
     return False
 
@@ -100,12 +129,20 @@ def call_llm(
     agent_role selects model (Haiku triage, Sonnet behavior/synthesis).
     agent_type selects which mock template to use when mocked.
     """
-    role: AgentRole = agent_role or ("triage" if agent_type == "triage" else "behavior" if agent_type == "behavior" else "synthesis")
+    role: AgentRole = agent_role or (
+        "triage"
+        if agent_type == "triage"
+        else "behavior" if agent_type == "behavior" else "synthesis"
+    )
     model = MODEL_BY_ROLE.get(role, MODEL_BY_ROLE["synthesis"])
 
     if _should_mock():
         time.sleep(random.uniform(0.1, 0.5))
-        base = {"mock": True, "model": model, **MOCK_RESPONSES.get(agent_type, MOCK_RESPONSES["triage"])}
+        base = {
+            "mock": True,
+            "model": model,
+            **MOCK_RESPONSES.get(agent_type, MOCK_RESPONSES["triage"]),
+        }
         base.setdefault("usage", {"input_tokens": 1200, "output_tokens": 400})
         it, ot = base["usage"]["input_tokens"], base["usage"]["output_tokens"]
         base["cost_usd"] = round(usage_cost_usd(model, it, ot), 6)
@@ -113,7 +150,11 @@ def call_llm(
 
     client = _get_client()
     if client is None:
-        base = {"mock": True, "model": model, **MOCK_RESPONSES.get(agent_type, MOCK_RESPONSES["triage"])}
+        base = {
+            "mock": True,
+            "model": model,
+            **MOCK_RESPONSES.get(agent_type, MOCK_RESPONSES["triage"]),
+        }
         base.setdefault("usage", {"input_tokens": 800, "output_tokens": 300})
         it, ot = base["usage"]["input_tokens"], base["usage"]["output_tokens"]
         base["cost_usd"] = round(usage_cost_usd(model, it, ot), 6)
@@ -143,11 +184,13 @@ def call_llm(
                 if block.type == "text":
                     result["thoughts"].append(block.text)
                 elif block.type == "tool_use":
-                    result["tool_calls"].append({
-                        "tool": block.name,
-                        "args": block.input,
-                        "id": block.id,
-                    })
+                    result["tool_calls"].append(
+                        {
+                            "tool": block.name,
+                            "args": block.input,
+                            "id": block.id,
+                        }
+                    )
 
             if response.stop_reason == "tool_use":
                 result["needs_tool_response"] = True
@@ -166,15 +209,24 @@ def call_llm(
 
         except Exception as e:
             if attempt < max_retries:
-                wait = 2 ** attempt
+                wait = 2**attempt
                 time.sleep(wait)
             else:
-                err = {"mock": True, "error": str(e), "model": model, **MOCK_RESPONSES.get(agent_type, MOCK_RESPONSES["triage"])}
+                err = {
+                    "mock": True,
+                    "error": str(e),
+                    "model": model,
+                    **MOCK_RESPONSES.get(agent_type, MOCK_RESPONSES["triage"]),
+                }
                 err.setdefault("usage", {"input_tokens": 0, "output_tokens": 0})
                 err["cost_usd"] = 0.0
                 return err
 
-    return {"mock": True, "model": model, **MOCK_RESPONSES.get(agent_type, MOCK_RESPONSES["triage"])}
+    return {
+        "mock": True,
+        "model": model,
+        **MOCK_RESPONSES.get(agent_type, MOCK_RESPONSES["triage"]),
+    }
 
 
 def get_mock_trace(agent_type: str, transaction_id: str = "TXN_48213") -> dict:

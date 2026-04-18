@@ -2,8 +2,12 @@
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
-    Distance, VectorParams, PointStruct, Filter,
-    FieldCondition, MatchValue, SearchParams,
+    Distance,
+    VectorParams,
+    PointStruct,
+    Filter,
+    FieldCondition,
+    MatchValue,
 )
 from app.config import get_settings
 
@@ -12,7 +16,9 @@ COLLECTION_NAME = "transactions"
 
 
 def get_qdrant_client() -> QdrantClient:
-    return QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port, timeout=30)
+    return QdrantClient(
+        host=settings.qdrant_host, port=settings.qdrant_port, timeout=30
+    )
 
 
 def ensure_collection(client: QdrantClient | None = None):
@@ -22,7 +28,9 @@ def ensure_collection(client: QdrantClient | None = None):
     if COLLECTION_NAME not in collections:
         client.create_collection(
             collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=settings.embedding_dim, distance=Distance.COSINE),
+            vectors_config=VectorParams(
+                size=settings.embedding_dim, distance=Distance.COSINE
+            ),
         )
 
 
@@ -38,9 +46,15 @@ async def search_similar(
     if filters:
         must = []
         if "type" in filters:
-            must.append(FieldCondition(key="type", match=MatchValue(value=filters["type"])))
+            must.append(
+                FieldCondition(key="type", match=MatchValue(value=filters["type"]))
+            )
         if "is_fraud" in filters:
-            must.append(FieldCondition(key="is_fraud", match=MatchValue(value=filters["is_fraud"])))
+            must.append(
+                FieldCondition(
+                    key="is_fraud", match=MatchValue(value=filters["is_fraud"])
+                )
+            )
         if must:
             query_filter = Filter(must=must)
 
@@ -74,5 +88,5 @@ def upsert_points(points: list[PointStruct], client: QdrantClient | None = None)
     client = client or get_qdrant_client()
     batch_size = 500
     for i in range(0, len(points), batch_size):
-        batch = points[i:i + batch_size]
+        batch = points[i : i + batch_size]
         client.upsert(collection_name=COLLECTION_NAME, points=batch)

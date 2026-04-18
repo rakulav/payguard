@@ -1,10 +1,12 @@
 """pgvector-backed vector search over transaction embeddings."""
 
-from sqlalchemy import select, text
-from app.db import AsyncSessionLocal, Transaction
+from sqlalchemy import text
+from app.db import AsyncSessionLocal
 
 
-async def search_similar(embedding: list[float], k: int = 10, filters: dict | None = None) -> list[dict]:
+async def search_similar(
+    embedding: list[float], k: int = 10, filters: dict | None = None
+) -> list[dict]:
     """Search pgvector for similar transactions by embedding distance."""
     async with AsyncSessionLocal() as db:
         embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
@@ -14,7 +16,9 @@ async def search_similar(embedding: list[float], k: int = 10, filters: dict | No
             if "type" in filters:
                 where_clauses.append(f"type = '{filters['type']}'")
             if "is_fraud" in filters:
-                where_clauses.append(f"is_fraud = {'true' if filters['is_fraud'] else 'false'}")
+                where_clauses.append(
+                    f"is_fraud = {'true' if filters['is_fraud'] else 'false'}"
+                )
 
         where_sql = " AND ".join(where_clauses)
 

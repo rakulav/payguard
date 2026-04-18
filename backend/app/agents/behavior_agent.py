@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from app.llm import call_llm, get_mock_trace
+from app.llm import call_llm
 from app.audit_service import append_audit
 from app.cost_tracker import usage_record
 from app.mcp_servers.customer_profile import customer_profile
@@ -29,20 +29,40 @@ async def run_behavior(
     txn = triage_result.get("transaction", {})
     customer_id = txn.get("name_orig", "unknown")
 
-    emit({"type": "thought", "content": f"Triage confidence {triage_result['confidence']:.2f} < 0.9 — running behavioral analysis for customer {customer_id}..."})
+    emit(
+        {
+            "type": "thought",
+            "content": f"Triage confidence {triage_result['confidence']:.2f} < 0.9 — running behavioral analysis for customer {customer_id}...",
+        }
+    )
 
     # Tool call 1: customer_profile
     emit({"type": "tool_call", "content": f"Calling customer_profile({customer_id})"})
     profile_result = await customer_profile(customer_id)
     profile = profile_result.get("profile", {})
-    emit({"type": "tool_result", "content": f"Profile: {profile.get('total_transactions', 0)} transactions, avg ${profile.get('avg_amount', 0):,.2f}"})
+    emit(
+        {
+            "type": "tool_result",
+            "content": f"Profile: {profile.get('total_transactions', 0)} transactions, avg ${profile.get('avg_amount', 0):,.2f}",
+        }
+    )
 
     # Tool call 2: similar_fraud_search
-    emit({"type": "tool_call", "content": f"Calling similar_fraud_search({transaction_id})"})
+    emit(
+        {
+            "type": "tool_call",
+            "content": f"Calling similar_fraud_search({transaction_id})",
+        }
+    )
     search_result = await similar_fraud_search(transaction_id=transaction_id, k=10)
     similar = search_result.get("similar_transactions", [])
     sources = search_result.get("retrieval_sources", {})
-    emit({"type": "tool_result", "content": f"Found {len(similar)} similar transactions. Sources: pgvector({sources.get('pgvector', 0)}), qdrant({sources.get('qdrant', 0)}), opensearch({sources.get('opensearch', 0)})"})
+    emit(
+        {
+            "type": "tool_result",
+            "content": f"Found {len(similar)} similar transactions. Sources: pgvector({sources.get('pgvector', 0)}), qdrant({sources.get('qdrant', 0)}), opensearch({sources.get('opensearch', 0)})",
+        }
+    )
 
     # Analyze behavioral anomalies
     behavioral_flags = []
@@ -59,7 +79,10 @@ async def run_behavior(
         anomaly_score += 0.15
 
     known_categories = [c["category"] for c in profile.get("top_categories", [])]
-    if txn.get("merchant_category") and txn["merchant_category"] not in known_categories:
+    if (
+        txn.get("merchant_category")
+        and txn["merchant_category"] not in known_categories
+    ):
         behavioral_flags.append(f"category_drift_to_{txn['merchant_category']}")
         anomaly_score += 0.10
 
@@ -93,7 +116,9 @@ async def run_behavior(
         f"Provide your behavioral analysis."
     )
 
-    llm_result = call_llm(SYSTEM_PROMPT, user_msg, agent_type="behavior", agent_role="behavior")
+    llm_result = call_llm(
+        SYSTEM_PROMPT, user_msg, agent_type="behavior", agent_role="behavior"
+    )
 
     for thought in llm_result.get("thoughts", []):
         emit({"type": "thought", "content": thought})
@@ -145,10 +170,15 @@ async def run_behavior(
             reason=reasoning[:400] if reasoning else "",
         )
 
-    emit({"type": "verdict", "content": {
-        "anomaly_score": result["anomaly_score"],
-        "behavioral_flags": result["behavioral_flags"],
-        "reasoning": result["reasoning"],
-    }})
+    emit(
+        {
+            "type": "verdict",
+            "content": {
+                "anomaly_score": result["anomaly_score"],
+                "behavioral_flags": result["behavioral_flags"],
+                "reasoning": result["reasoning"],
+            },
+        }
+    )
 
     return result
